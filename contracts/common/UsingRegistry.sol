@@ -4,8 +4,8 @@ import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 import "./interfaces/IAccounts.sol";
-//import "./interfaces/IFeeCurrencyWhitelist.sol";
-//import "./interfaces/IFreezer.sol";
+import "./interfaces/IFeeCurrencyWhitelist.sol";
+import "./interfaces/IFreezer.sol";
 import "./interfaces/IRegistry.sol";
 
 import "../governance/interfaces/IElection.sol";
@@ -13,13 +13,13 @@ import "../governance/interfaces/IGovernance.sol";
 import "../governance/interfaces/ILockedGold.sol";
 import "../governance/interfaces/IValidators.sol";
 
-//import "../identity/interfaces/IRandom.sol";
+import "../identity/interfaces/IRandom.sol";
 //import "../identity/interfaces/IAttestations.sol";
 
-//import "../stability/interfaces/IExchange.sol";
-//import "../stability/interfaces/IReserve.sol";
-//import "../stability/interfaces/ISortedOracles.sol";
-//import "../stability/interfaces/IStableToken.sol";
+import "../stability/interfaces/IExchange.sol";
+import "../stability/interfaces/IReserve.sol";
+import "../stability/interfaces/ISortedOracles.sol";
+import "../stability/interfaces/IStableToken.sol";
 
 contract UsingRegistry is Ownable {
   event RegistrySet(address indexed registryAddress);
@@ -83,7 +83,6 @@ contract UsingRegistry is Ownable {
   function getElection() internal view returns (IElection) {
     return IElection(registry.getAddressForOrDie(ELECTION_REGISTRY_ID));
   }
-/*
   function getExchange() internal view returns (IExchange) {
     return IExchange(registry.getAddressForOrDie(EXCHANGE_REGISTRY_ID));
   }
@@ -95,7 +94,6 @@ contract UsingRegistry is Ownable {
   function getFreezer() internal view returns (IFreezer) {
     return IFreezer(registry.getAddressForOrDie(FREEZER_REGISTRY_ID));
   }
-*/
   function getGoldToken() internal view returns (IERC20) {
     return IERC20(registry.getAddressForOrDie(GOLD_TOKEN_REGISTRY_ID));
   }
@@ -107,7 +105,7 @@ contract UsingRegistry is Ownable {
   function getLockedGold() internal view returns (ILockedGold) {
     return ILockedGold(registry.getAddressForOrDie(LOCKED_GOLD_REGISTRY_ID));
   }
-/*
+
   function getRandom() internal view returns (IRandom) {
     return IRandom(registry.getAddressForOrDie(RANDOM_REGISTRY_ID));
   }
@@ -123,7 +121,7 @@ contract UsingRegistry is Ownable {
   function getStableToken() internal view returns (IStableToken) {
     return IStableToken(registry.getAddressForOrDie(STABLE_TOKEN_REGISTRY_ID));
   }
-*/
+
   function getValidators() internal view returns (IValidators) {
     return IValidators(registry.getAddressForOrDie(VALIDATORS_REGISTRY_ID));
   }
