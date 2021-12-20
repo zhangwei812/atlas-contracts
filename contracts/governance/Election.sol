@@ -43,8 +43,8 @@ CalledByVm
         uint256 epoch;
     }
 
-    struct GroupPendingVotes {
-        // The total number of pending votes that have been cast for this group.
+    struct ValidatorPendingVotes {
+        // The total number of pending votes that have been cast for this validator.
         uint256 total;
         // Pending votes cast per voter.
         mapping(address => PendingVote) byAccount;
@@ -54,13 +54,13 @@ CalledByVm
     // These votes have yet to contribute to the election of validators and thus do not accrue
     // rewards.
     struct PendingVotes {
-        // The total number of pending votes cast across all groups.
+        // The total number of pending votes cast across all validators.
         uint256 total;
-        mapping(address => GroupPendingVotes) forGroup;
+        mapping(address => ValidatorPendingVotes) forValidator;
     }
 
-    struct GroupActiveVotes {
-        // The total number of active votes that have been cast for this group.
+    struct ValidatorActiveVotes {
+        // The total number of active votes that have been cast for this validator.
         uint256 total;
         // The total number of active votes by a voter is equal to the number of active vote units for
         // that voter times the total number of active votes divided by the total number of active
@@ -74,24 +74,24 @@ CalledByVm
     // Active votes are those for which at least one following election has been held.
     // These votes have contributed to the election of validators and thus accrue rewards.
     struct ActiveVotes {
-        // The total number of active votes cast across all groups.
+        // The total number of active votes cast across all validators.
         uint256 total;
-        mapping(address => GroupActiveVotes) forGroup;  // group => voters
+        mapping(address => ValidatorActiveVotes) forValidator;  // validator => voters
     }
 
     struct TotalVotes {
-        // A list of eligible ValidatorGroups sorted by total (pending+active) votes.
-        // Note that this list will omit ineligible ValidatorGroups, including those that may have > 0
+        // A list of eligible Validators sorted by total (pending+active) votes.
+        // Note that this list will omit ineligible Validators, including those that may have > 0
         // total votes.
         SortedLinkedList.List eligible;
     }
 
     struct Votes {
-        PendingVotes pending; //group => voters pending
-        ActiveVotes active;   //group => voters active
-        TotalVotes total;     //sort groups
-        // Maps an account to the list of groups it's voting for.
-        mapping(address => address[]) groupsVotedFor; // voter => groups
+        PendingVotes pending; //validator => voters pending
+        ActiveVotes active;   //validator => voters active
+        TotalVotes total;     //sort validators
+        // Maps an account to the list of validators it's voting for.
+        mapping(address => address[]) validatorsVotedFor; // voter => validators
     }
 
     struct ElectableValidators {
@@ -102,36 +102,36 @@ CalledByVm
     Votes private votes;
     // Governs the minimum and maximum number of validators that can be elected.
     ElectableValidators public electableValidators;
-    // Governs how many validator groups a single account can vote for.
-    uint256 public maxNumGroupsVotedFor;
-    // Groups must receive at least this fraction of the total votes in order to be considered in
+    // Governs how many validator validators a single account can vote for.
+    uint256 public maxNumValidatorsVotedFor;
+    // Validators must receive at least this fraction of the total votes in order to be considered in
     // elections.
     FixidityLib.Fraction public electabilityThreshold;
 
     event ElectableValidatorsSet(uint256 min, uint256 max);
-    event MaxNumGroupsVotedForSet(uint256 maxNumGroupsVotedFor);
+    event MaxNumValidatorsVotedForSet(uint256 maxNumValidatorsVotedFor);
     event ElectabilityThresholdSet(uint256 electabilityThreshold);
-    event ValidatorGroupMarkedEligible(address indexed group);
-    event ValidatorGroupMarkedIneligible(address indexed group);
-    event ValidatorGroupVoteCast(address indexed account, address indexed group, uint256 value);
-    event ValidatorGroupVoteActivated(
+    event ValidatorMarkedEligible(address indexed validator);
+    event ValidatorMarkedIneligible(address indexed validator);
+    event ValidatorVoteCast(address indexed account, address indexed validator, uint256 value);
+    event ValidatorVoteActivated(
         address indexed account,
-        address indexed group,
+        address indexed validator,
         uint256 value,
         uint256 units
     );
-    event ValidatorGroupPendingVoteRevoked(
+    event ValidatorPendingVoteRevoked(
         address indexed account,
-        address indexed group,
+        address indexed validator,
         uint256 value
     );
-    event ValidatorGroupActiveVoteRevoked(
+    event ValidatorActiveVoteRevoked(
         address indexed account,
-        address indexed group,
+        address indexed validator,
         uint256 value,
         uint256 units
     );
-    event EpochRewardRemainsDistributedToGroups(address indexed group, uint256 value);
+    event EpochRewardRemainsDistributedToValidators(address indexed validator, uint256 value);
 
     event EpochRewardsDistributedToVoters(address indexed voterAddress, uint256 value);
 
@@ -147,8 +147,8 @@ CalledByVm
      * @notice Used in place of the constructor to allow the contract to be upgradable via proxy.
      * @param registryAddress The address of the registry core smart contract.
      * @param minElectableValidators The minimum number of validators that can be elected.
-     * @param _maxNumGroupsVotedFor The maximum number of groups that an account can vote for at once.
-     * @param _electabilityThreshold The minimum ratio of votes a group needs before its members can
+     * @param _maxNumValidatorsVotedFor The maximum number of validators that an account can vote for at once.
+     * @param _electabilityThreshold The minimum ratio of votes a validator needs before its members can
      *   be elected.
      * @dev Should be called only once.
      */
@@ -156,13 +156,13 @@ CalledByVm
         address registryAddress,
         uint256 minElectableValidators,
         uint256 maxElectableValidators,
-        uint256 _maxNumGroupsVotedFor,
+        uint256 _maxNumValidatorsVotedFor,
         uint256 _electabilityThreshold
     ) external initializer {
         _transferOwnership(msg.sender);
         setRegistry(registryAddress);
         setElectableValidators(minElectableValidators, maxElectableValidators);
-        setMaxNumGroupsVotedFor(_maxNumGroupsVotedFor);
+        setMaxNumValidatorsVotedFor(_maxNumValidatorsVotedFor);
         setElectabilityThreshold(_electabilityThreshold);
     }
 
@@ -199,14 +199,14 @@ CalledByVm
     }
 
     /**
-     * @notice Updates the maximum number of groups an account can be voting for at once.
-     * @param _maxNumGroupsVotedFor The maximum number of groups an account can vote for.
+     * @notice Updates the maximum number of validators an account can be voting for at once.
+     * @param _maxNumValidatorsVotedFor The maximum number of validators an account can vote for.
      * @return True upon success.
      */
-    function setMaxNumGroupsVotedFor(uint256 _maxNumGroupsVotedFor) public onlyOwner returns (bool) {
-        require(_maxNumGroupsVotedFor != maxNumGroupsVotedFor, "Max groups voted for not changed");
-        maxNumGroupsVotedFor = _maxNumGroupsVotedFor;
-        emit MaxNumGroupsVotedForSet(_maxNumGroupsVotedFor);
+    function setMaxNumValidatorsVotedFor(uint256 _maxNumValidatorsVotedFor) public onlyOwner returns (bool) {
+        require(_maxNumValidatorsVotedFor != maxNumValidatorsVotedFor, "Max validators voted for not changed");
+        maxNumValidatorsVotedFor = _maxNumValidatorsVotedFor;
+        emit MaxNumValidatorsVotedForSet(_maxNumValidatorsVotedFor);
         return true;
     }
 
@@ -234,236 +234,236 @@ CalledByVm
     }
 
     /**
-     * @notice Increments the number of total and pending votes for `group`.
-     * @param group The validator group to vote for.
+     * @notice Increments the number of total and pending votes for `validator`.
+     * @param validator The validator validator to vote for.
      * @param value The amount of gold to use to vote.
-     * @param lesser The group receiving fewer votes than `group`, or 0 if `group` has the
-     *   fewest votes of any validator group.
-     * @param greater The group receiving more votes than `group`, or 0 if `group` has the
-     *   most votes of any validator group.
+     * @param lesser The validator receiving fewer votes than `validator`, or 0 if `validator` has the
+     *   fewest votes of any validator validator.
+     * @param greater The validator receiving more votes than `validator`, or 0 if `validator` has the
+     *   most votes of any validator validator.
      * @return True upon success.
-     * @dev Fails if `group` is empty or not a validator group.
+     * @dev Fails if `validator` is empty or not a validator validator.
      */
-    function vote(address group, uint256 value, address lesser, address greater)
+    function vote(address validator, uint256 value, address lesser, address greater)
     external
     nonReentrant
     returns (bool)
     {
-        require(votes.total.eligible.contains(group), "Group not eligible");
+        require(votes.total.eligible.contains(validator), "Validator not eligible");
         require(0 < value, "Vote value cannot be zero");
-        require(canReceiveVotes(group, value), "Group cannot receive votes");
+        require(canReceiveVotes(validator, value), "Validator cannot receive votes");
         address account = getAccounts().voteSignerToAccount(msg.sender);
 
-        // Add group to the groups voted for by the account.
-        bool alreadyVotedForGroup = false;
-        address[] storage groups = votes.groupsVotedFor[account];
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-            alreadyVotedForGroup = alreadyVotedForGroup || groups[i] == group;
+        // Add validator to the validators voted for by the account.
+        bool alreadyVotedForValidator = false;
+        address[] storage validators = votes.validatorsVotedFor[account];
+        for (uint256 i = 0; i < validators.length; i = i.add(1)) {
+            alreadyVotedForValidator = alreadyVotedForValidator || validators[i] == validator;
         }
-        if (!alreadyVotedForGroup) {
-            require(groups.length < maxNumGroupsVotedFor, "Voted for too many groups");
-            groups.push(group);
+        if (!alreadyVotedForValidator) {
+            require(validators.length < maxNumValidatorsVotedFor, "Voted for too many validators");
+            validators.push(validator);
         }
 
-        incrementPendingVotes(group, account, value);
-        incrementTotalVotes(group, value, lesser, greater);
+        incrementPendingVotes(validator, account, value);
+        incrementTotalVotes(validator, value, lesser, greater);
         getLockedGold().decrementNonvotingAccountBalance(account, value);
-        emit ValidatorGroupVoteCast(account, group, value);
+        emit ValidatorVoteCast(account, validator, value);
         return true;
     }
 
     /**
-     * @notice Converts `account`'s pending votes for `group` to active votes.
-     * @param group The validator group to vote for.
+     * @notice Converts `account`'s pending votes for `validator` to active votes.
+     * @param validator The validator validator to vote for.
      * @return True upon success.
      * @dev Pending votes cannot be activated until an election has been held.
      */
-    function activate(address group) external nonReentrant returns (bool) {
+    function activate(address validator) external nonReentrant returns (bool) {
         address account = getAccounts().voteSignerToAccount(msg.sender);
-        return _activate(group, account);
+        return _activate(validator, account);
     }
 
     /**
-     * @notice Converts `account`'s pending votes for `group` to active votes.
-     * @param group The validator group to vote for.
-     * @param account The validateor group account's pending votes to active votes
+     * @notice Converts `account`'s pending votes for `validator` to active votes.
+     * @param validator The validator validator to vote for.
+     * @param account The validateor validator account's pending votes to active votes
      * @return True upon success.
      * @dev Pending votes cannot be activated until an election has been held.
      */
-    function activateForAccount(address group, address account) external nonReentrant returns (bool) {
-        return _activate(group, account);
+    function activateForAccount(address validator, address account) external nonReentrant returns (bool) {
+        return _activate(validator, account);
     }
 
-    function _activate(address group, address account) internal returns (bool) {
-        PendingVote storage pendingVote = votes.pending.forGroup[group].byAccount[account];
+    function _activate(address validator, address account) internal returns (bool) {
+        PendingVote storage pendingVote = votes.pending.forValidator[validator].byAccount[account];
         require(pendingVote.epoch < getEpochNumber(), "Pending vote epoch not passed");
         uint256 value = pendingVote.value;
         require(value > 0, "Vote value cannot be zero");
-        decrementPendingVotes(group, account, value);
-        uint256 units = incrementActiveVotes(group, account, value);
-        emit ValidatorGroupVoteActivated(account, group, value, units);
+        decrementPendingVotes(validator, account, value);
+        uint256 units = incrementActiveVotes(validator, account, value);
+        emit ValidatorVoteActivated(account, validator, value, units);
         return true;
     }
 
     /**
-     * @notice Returns whether or not an account's votes for the specified group can be activated.
+     * @notice Returns whether or not an account's votes for the specified validator can be activated.
      * @param account The account with pending votes.
-     * @param group The validator group that `account` has pending votes for.
-     * @return Whether or not `account` has activatable votes for `group`.
+     * @param validator The validator validator that `account` has pending votes for.
+     * @return Whether or not `account` has activatable votes for `validator`.
      * @dev Pending votes cannot be activated until an election has been held.
      */
-    function hasActivatablePendingVotes(address account, address group) external view returns (bool) {
-        PendingVote storage pendingVote = votes.pending.forGroup[group].byAccount[account];
+    function hasActivatablePendingVotes(address account, address validator) external view returns (bool) {
+        PendingVote storage pendingVote = votes.pending.forValidator[validator].byAccount[account];
         return pendingVote.epoch < getEpochNumber() && pendingVote.value > 0;
     }
 
     /**
-     * @notice Revokes `value` pending votes for `group`
-     * @param group The validator group to revoke votes from.
+     * @notice Revokes `value` pending votes for `validator`
+     * @param validator The validator validator to revoke votes from.
      * @param value The number of votes to revoke.
-     * @param lesser The group receiving fewer votes than the group for which the vote was revoked,
-     *   or 0 if that group has the fewest votes of any validator group.
-     * @param greater The group receiving more votes than the group for which the vote was revoked,
-     *   or 0 if that group has the most votes of any validator group.
-     * @param index The index of the group in the account's voting list.
+     * @param lesser The validator receiving fewer votes than the validator for which the vote was revoked,
+     *   or 0 if that validator has the fewest votes of any validator validator.
+     * @param greater The validator receiving more votes than the validator for which the vote was revoked,
+     *   or 0 if that validator has the most votes of any validator validator.
+     * @param index The index of the validator in the account's voting list.
      * @return True upon success.
-     * @dev Fails if the account has not voted on a validator group.
+     * @dev Fails if the account has not voted on a validator validator.
      */
     function revokePending(
-        address group,
+        address validator,
         uint256 value,
         address lesser,
         address greater,
         uint256 index
     ) external nonReentrant returns (bool) {
-        require(group != address(0), "Group address zero");
+        require(validator != address(0), "Validator address zero");
         address account = getAccounts().voteSignerToAccount(msg.sender);
         require(0 < value, "Vote value cannot be zero");
         require(
-            value <= getPendingVotesForGroupByAccount(group, account),
+            value <= getPendingVotesForValidatorByAccount(validator, account),
             "Vote value larger than pending votes"
         );
-        decrementPendingVotes(group, account, value);
-        decrementTotalVotes(group, value, lesser, greater);
+        decrementPendingVotes(validator, account, value);
+        decrementTotalVotes(validator, value, lesser, greater);
         getLockedGold().incrementNonvotingAccountBalance(account, value);
-        if (getTotalVotesForGroupByAccount(group, account) == 0) {
-            deleteElement(votes.groupsVotedFor[account], group, index);
+        if (getTotalVotesForValidatorByAccount(validator, account) == 0) {
+            deleteElement(votes.validatorsVotedFor[account], validator, index);
         }
-        emit ValidatorGroupPendingVoteRevoked(account, group, value);
+        emit ValidatorPendingVoteRevoked(account, validator, value);
         return true;
     }
 
     /**
-     * @notice Revokes all active votes for `group`
-     * @param group The validator group to revoke votes from.
-     * @param lesser The group receiving fewer votes than the group for which the vote was revoked,
-     *   or 0 if that group has the fewest votes of any validator group.
-     * @param greater The group receiving more votes than the group for which the vote was revoked,
-     *   or 0 if that group has the most votes of any validator group.
-     * @param index The index of the group in the account's voting list.
+     * @notice Revokes all active votes for `validator`
+     * @param validator The validator validator to revoke votes from.
+     * @param lesser The validator receiving fewer votes than the validator for which the vote was revoked,
+     *   or 0 if that validator has the fewest votes of any validator validator.
+     * @param greater The validator receiving more votes than the validator for which the vote was revoked,
+     *   or 0 if that validator has the most votes of any validator validator.
+     * @param index The index of the validator in the account's voting list.
      * @return True upon success.
-     * @dev Fails if the account has not voted on a validator group.
+     * @dev Fails if the account has not voted on a validator validator.
      */
-    function revokeAllActive(address group, address lesser, address greater, uint256 index)
+    function revokeAllActive(address validator, address lesser, address greater, uint256 index)
     external
     nonReentrant
     returns (bool)
     {
         address account = getAccounts().voteSignerToAccount(msg.sender);
-        uint256 value = getActiveVotesForGroupByAccount(group, account);
-        return _revokeActive(group, value, lesser, greater, index);
+        uint256 value = getActiveVotesForValidatorByAccount(validator, account);
+        return _revokeActive(validator, value, lesser, greater, index);
     }
 
     /**
-     * @notice Revokes `value` active votes for `group`
-     * @param group The validator group to revoke votes from.
+     * @notice Revokes `value` active votes for `validator`
+     * @param validator The validator validator to revoke votes from.
      * @param value The number of votes to revoke.
-     * @param lesser The group receiving fewer votes than the group for which the vote was revoked,
-     *   or 0 if that group has the fewest votes of any validator group.
-     * @param greater The group receiving more votes than the group for which the vote was revoked,
-     *   or 0 if that group has the most votes of any validator group.
-     * @param index The index of the group in the account's voting list.
+     * @param lesser The validator receiving fewer votes than the validator for which the vote was revoked,
+     *   or 0 if that validator has the fewest votes of any validator validator.
+     * @param greater The validator receiving more votes than the validator for which the vote was revoked,
+     *   or 0 if that validator has the most votes of any validator validator.
+     * @param index The index of the validator in the account's voting list.
      * @return True upon success.
-     * @dev Fails if the account has not voted on a validator group.
+     * @dev Fails if the account has not voted on a validator validator.
      */
     function revokeActive(
-        address group,
+        address validator,
         uint256 value,
         address lesser,
         address greater,
         uint256 index
     ) external nonReentrant returns (bool) {
-        return _revokeActive(group, value, lesser, greater, index);
+        return _revokeActive(validator, value, lesser, greater, index);
     }
 
     function _revokeActive(
-        address group,
+        address validator,
         uint256 value,
         address lesser,
         address greater,
         uint256 index
     ) internal returns (bool) {
         // TODO(asa): Dedup with revokePending.
-        require(group != address(0), "Group address zero");
+        require(validator != address(0), "Validator address zero");
         address account = getAccounts().voteSignerToAccount(msg.sender);
         require(0 < value, "Vote value cannot be zero");
         require(
-            value <= getActiveVotesForGroupByAccount(group, account),
+            value <= getActiveVotesForValidatorByAccount(validator, account),
             "Vote value larger than active votes"
         );
-        uint256 units = decrementActiveVotes(group, account, value);
-        decrementTotalVotes(group, value, lesser, greater);
+        uint256 units = decrementActiveVotes(validator, account, value);
+        decrementTotalVotes(validator, value, lesser, greater);
         getLockedGold().incrementNonvotingAccountBalance(account, value);
-        if (getTotalVotesForGroupByAccount(group, account) == 0) {
-            deleteElement(votes.groupsVotedFor[account], group, index);
+        if (getTotalVotesForValidatorByAccount(validator, account) == 0) {
+            deleteElement(votes.validatorsVotedFor[account], validator, index);
         }
-        emit ValidatorGroupActiveVoteRevoked(account, group, value, units);
+        emit ValidatorActiveVoteRevoked(account, validator, value, units);
         return true;
     }
 
     /**
-     * @notice Decrements `value` pending or active votes for `group` from `account`.
+     * @notice Decrements `value` pending or active votes for `validator` from `account`.
      *         First revokes all pending votes and then, if `value` votes haven't
      *         been revoked yet, revokes additional active votes.
-     *         Fundamentally calls `revokePending` and `revokeActive` but only resorts groups once.
-     * @param account The account whose votes to `group` should be decremented.
-     * @param group The validator group to decrement votes from.
+     *         Fundamentally calls `revokePending` and `revokeActive` but only resorts validators once.
+     * @param account The account whose votes to `validator` should be decremented.
+     * @param validator The validator validator to decrement votes from.
      * @param maxValue The maxinum number of votes to decrement and revoke.
-     * @param lesser The group receiving fewer votes than the group for which the vote was revoked,
-     *               or 0 if that group has the fewest votes of any validator group.
-     * @param greater The group receiving more votes than the group for which the vote was revoked,
-     *                or 0 if that group has the most votes of any validator group.
-     * @param index The index of the group in the account's voting list.
+     * @param lesser The validator receiving fewer votes than the validator for which the vote was revoked,
+     *               or 0 if that validator has the fewest votes of any validator validator.
+     * @param greater The validator receiving more votes than the validator for which the vote was revoked,
+     *                or 0 if that validator has the most votes of any validator validator.
+     * @param index The index of the validator in the account's voting list.
      * @return uint256 Number of votes successfully decremented and revoked, with a max of `value`.
      */
     function _decrementVotes(
         address account,
-        address group,
+        address validator,
         uint256 maxValue,
         address lesser,
         address greater,
         uint256 index
     ) internal returns (uint256) {
         uint256 remainingValue = maxValue;
-        uint256 pendingVotes = getPendingVotesForGroupByAccount(group, account);
+        uint256 pendingVotes = getPendingVotesForValidatorByAccount(validator, account);
         if (pendingVotes > 0) {
             uint256 decrementValue = Math.min(remainingValue, pendingVotes);
-            decrementPendingVotes(group, account, decrementValue);
-            emit ValidatorGroupPendingVoteRevoked(account, group, decrementValue);
+            decrementPendingVotes(validator, account, decrementValue);
+            emit ValidatorPendingVoteRevoked(account, validator, decrementValue);
             remainingValue = remainingValue.sub(decrementValue);
         }
-        uint256 activeVotes = getActiveVotesForGroupByAccount(group, account);
+        uint256 activeVotes = getActiveVotesForValidatorByAccount(validator, account);
         if (activeVotes > 0 && remainingValue > 0) {
             uint256 decrementValue = Math.min(remainingValue, activeVotes);
-            uint256 units = decrementActiveVotes(group, account, decrementValue);
-            emit ValidatorGroupActiveVoteRevoked(account, group, decrementValue, units);
+            uint256 units = decrementActiveVotes(validator, account, decrementValue);
+            emit ValidatorActiveVoteRevoked(account, validator, decrementValue, units);
             remainingValue = remainingValue.sub(decrementValue);
         }
         uint256 decrementedValue = maxValue.sub(remainingValue);
         if (decrementedValue > 0) {
-            decrementTotalVotes(group, decrementedValue, lesser, greater);
-            if (getTotalVotesForGroupByAccount(group, account) == 0) {
-                deleteElement(votes.groupsVotedFor[account], group, index);
+            decrementTotalVotes(validator, decrementedValue, lesser, greater);
+            if (getTotalVotesForValidatorByAccount(validator, account) == 0) {
+                deleteElement(votes.validatorsVotedFor[account], validator, index);
             }
         }
         return decrementedValue;
@@ -476,228 +476,183 @@ CalledByVm
      */
     function getTotalVotesByAccount(address account) external view returns (uint256) {
         uint256 total = 0;
-        address[] memory groups = votes.groupsVotedFor[account];
-        for (uint256 i = 0; i < groups.length; i = i.add(1)) {
-            total = total.add(getTotalVotesForGroupByAccount(groups[i], account));
+        address[] memory validators = votes.validatorsVotedFor[account];
+        for (uint256 i = 0; i < validators.length; i = i.add(1)) {
+            total = total.add(getTotalVotesForValidatorByAccount(validators[i], account));
         }
         return total;
     }
 
     /**
-     * @notice Returns the pending votes for `group` made by `account`.
-     * @param group The address of the validator group.
+     * @notice Returns the pending votes for `validator` made by `account`.
+     * @param validator The address of the validator validator.
      * @param account The address of the voting account.
-     * @return The pending votes for `group` made by `account`.
+     * @return The pending votes for `validator` made by `account`.
      */
-    function getPendingVotesForGroupByAccount(address group, address account)
+    function getPendingVotesForValidatorByAccount(address validator, address account)
     public
     view
     returns (uint256)
     {
-        return votes.pending.forGroup[group].byAccount[account].value;
+        return votes.pending.forValidator[validator].byAccount[account].value;
     }
 
     /**
-     * @notice Returns the active votes for `group` made by `account`.
-     * @param group The address of the validator group.
+     * @notice Returns the active votes for `validator` made by `account`.
+     * @param validator The address of the validator validator.
      * @param account The address of the voting account.
-     * @return The active votes for `group` made by `account`.
+     * @return The active votes for `validator` made by `account`.
      */
-    function getActiveVotesForGroupByAccount(address group, address account)
+    function getActiveVotesForValidatorByAccount(address validator, address account)
     public
     view
     returns (uint256)
     {
-        return unitsToVotes(group, votes.active.forGroup[group].unitsByAccount[account]);
+        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
     }
 
-    function getActiveVotesForGroup(address group, address account)
+    function getActiveVotesForValidator(address validator, address account)
     public
     view
     returns (uint256)
     {
-        return unitsToVotes(group, votes.active.forGroup[group].unitsByAccount[account]);
+        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
     }
 
     /**
-     * @notice Returns the total votes for `group` made by `account`.
-     * @param group The address of the validator group.
+     * @notice Returns the total votes for `validator` made by `account`.
+     * @param validator The address of the validator validator.
      * @param account The address of the voting account.
-     * @return The total votes for `group` made by `account`.
+     * @return The total votes for `validator` made by `account`.
      */
-    function getTotalVotesForGroupByAccount(address group, address account)
+    function getTotalVotesForValidatorByAccount(address validator, address account)
     public
     view
     returns (uint256)
     {
-        uint256 pending = getPendingVotesForGroupByAccount(group, account);
-        uint256 active = getActiveVotesForGroupByAccount(group, account);
+        uint256 pending = getPendingVotesForValidatorByAccount(validator, account);
+        uint256 active = getActiveVotesForValidatorByAccount(validator, account);
         return pending.add(active);
     }
 
     /**
-     * @notice Returns the active vote units for `group` made by `account`.
-     * @param group The address of the validator group.
+     * @notice Returns the active vote units for `validator` made by `account`.
+     * @param validator The address of the validator validator.
      * @param account The address of the voting account.
-     * @return The active vote units for `group` made by `account`.
+     * @return The active vote units for `validator` made by `account`.
      */
-    function getActiveVoteUnitsForGroupByAccount(address group, address account)
+    function getActiveVoteUnitsForValidatorByAccount(address validator, address account)
     external
     view
     returns (uint256)
     {
-        return votes.active.forGroup[group].unitsByAccount[account];
+        return votes.active.forValidator[validator].unitsByAccount[account];
     }
 
     /**
-     * @notice Returns the total active vote units made for `group`.
-     * @param group The address of the validator group.
-     * @return The total active vote units made for `group`.
+     * @notice Returns the total active vote units made for `validator`.
+     * @param validator The address of the validator validator.
+     * @return The total active vote units made for `validator`.
      */
-    function getActiveVoteUnitsForGroup(address group) external view returns (uint256) {
-        return votes.active.forGroup[group].totalUnits;
+    function getActiveVoteUnitsForValidator(address validator) public view returns (uint256) {
+        return votes.active.forValidator[validator].totalUnits;
     }
 
     /**
-     * @notice Returns the total votes made for `group`.
-     * @param group The address of the validator group.
-     * @return The total votes made for `group`.
+     * @notice Returns the total votes made for `validator`.
+     * @param validator The address of the validator validator.
+     * @return The total votes made for `validator`.
      */
-    function getTotalVotesForGroup(address group) public view returns (uint256) {
-        return votes.pending.forGroup[group].total.add(votes.active.forGroup[group].total);
+    function getTotalVotesForValidator(address validator) public view returns (uint256) {
+        return votes.pending.forValidator[validator].total.add(votes.active.forValidator[validator].total);
     }
 
     /**
-     * @notice Returns the active voters vote for `group`.
-     * @param group The address of the validator group.
-     * @return The active voters made for `group`.
+     * @notice Returns the active voters vote for `validator`.
+     * @param validator The address of the validator validator.
+     * @return The active voters made for `validator`.
      */
-    function getActiveVotersForGroup(address group) public view returns (address[] memory) {
-        return votes.active.forGroup[group].voters;
+    function getActiveVotersForValidator(address validator) public view returns (address[] memory) {
+        return votes.active.forValidator[validator].voters;
     }
 
     /**
-     * @notice Returns the pending votes made for `group`.
-     * @param group The address of the validator group.
-     * @return The pending votes made for `group`.
+     * @notice Returns the pending votes made for `validator`.
+     * @param validator The address of the validator validator.
+     * @return The pending votes made for `validator`.
      */
-    function getPendingVotesForGroup(address group) public view returns (uint256) {
-        return votes.pending.forGroup[group].total;
+    function getPendingVotesForValidator(address validator) public view returns (uint256) {
+        return votes.pending.forValidator[validator].total;
     }
 
     /**
-     * @notice Returns whether or not a group is eligible to receive votes.
-     * @return Whether or not a group is eligible to receive votes.
-     * @dev Eligible groups that have received their maximum number of votes cannot receive more.
+     * @notice Returns whether or not a validator is eligible to receive votes.
+     * @return Whether or not a validator is eligible to receive votes.
+     * @dev Eligible validators that have received their maximum number of votes cannot receive more.
      */
-    function getGroupEligibility(address group) external view returns (bool) {
-        return votes.total.eligible.contains(group);
+    function getValidatorEligibility(address validator) external view returns (bool) {
+        return votes.total.eligible.contains(validator);
     }
 
-    /**
-     * @notice Returns the amount of rewards that voters for `group` are due at the end of an epoch.
-     * @param group The group to calculate epoch rewards for.
-     * @param totalEpochRewards The total amount of rewards going to all voters.
-     * @param uptimes Array of Fixidity representations of the validators' uptimes, between 0 and 1.
-     * @return The amount of rewards that voters for `group` are due at the end of an epoch.
-     * @dev Eligible groups that have received their maximum number of votes cannot receive more.
-     */
-    function getGroupEpochRewards(
-        address group,
-        uint256 totalEpochRewards,
-        uint256[] calldata uptimes
-    ) external view returns (uint256) {
-        IValidators validators = getValidators();
-        // The group must meet the balance requirements for their voters to receive epoch rewards.
-        if (!validators.meetsAccountLockedGoldRequirements(group) || votes.active.total <= 0) {
-            return 0;
-        }
-
-        FixidityLib.Fraction memory votePortion = FixidityLib.newFixedFraction(
-            votes.active.forGroup[group].total,
-            votes.active.total
-        );
-        FixidityLib.Fraction memory score = FixidityLib.wrap(
-            validators.calculateGroupEpochScore(uptimes)
-        );
-        FixidityLib.Fraction memory slashingMultiplier = FixidityLib.wrap(
-            validators.getValidatorGroupSlashingMultiplier(group)
-        );
-        return
-        FixidityLib
-        .newFixed(totalEpochRewards)
-        .multiply(votePortion)
-        .multiply(score)
-        .multiply(slashingMultiplier)
-        .fromFixed();
+    function getTopValidators(uint256 n) external view returns (address[] memory) {
+        return votes.total.eligible.headN(n);
     }
 
-    /**
-     * @notice Distributes epoch rewards to voters for `group` in the form of active votes.
-     * @param group The group whose voters will receive rewards.
-     * @param value The amount of rewards to distribute to voters for the group.
-     * @param lesser The group receiving fewer votes than `group` after the rewards are added.
-     * @param greater The group receiving more votes than `group` after the rewards are added.
-     * @dev Can only be called directly by the protocol.
-     */
-    //    function distributeEpochRewards(address group, uint256 value, address lesser, address greater)
+
+
+    //    function distributeEpochRewards(address validator, uint256 value, address lesser, address greater)
     //    external
     //    onlyVm
     //    {
-    //        _distributeEpochRewards(group, value, lesser, greater);
+    //        _distributeEpochRewards(validator, value, lesser, greater);
     //    }
 
-    /**
-     * @notice Distributes epoch rewards to voters for `group` in the form of active votes.
-     * @param group The group whose voters will receive rewards.
-     * @param value The amount of rewards to distribute to voters for the group.
-     * @param lesser The group receiving fewer votes than `group` after the rewards are added.
-     * @param greater The group receiving more votes than `group` after the rewards are added.
-     */
-    //    function _distributeEpochRewards(address group, uint256 value, address lesser, address greater)
+
+    //    function _distributeEpochRewards(address validator, uint256 value, address lesser, address greater)
     //    internal
     //    {
-    //        if (votes.total.eligible.contains(group)) {
-    //            uint256 newVoteTotal = votes.total.eligible.getValue(group).add(value);
-    //            votes.total.eligible.update(group, newVoteTotal, lesser, greater);
+    //        if (votes.total.eligible.contains(validator)) {
+    //            uint256 newVoteTotal = votes.total.eligible.getValue(validator).add(value);
+    //            votes.total.eligible.update(validator, newVoteTotal, lesser, greater);
     //        }
     //
-    //        votes.active.forGroup[group].total = votes.active.forGroup[group].total.add(value);
+    //        votes.active.forValidator[validator].total = votes.active.forValidator[validator].total.add(value);
     //        votes.active.total = votes.active.total.add(value);
-    //        emit EpochRewardsDistributedToVoters(group, value);
+    //        emit EpochRewardsDistributedToVoters(validator, value);
     //    }
 
-    function distributeEpochVotersRewards(address group, uint256 value)
+    function distributeEpochVotersRewards(address validator, uint256 value)
     external
     onlyVm
     {
-        _distributeEpochVotersRewards(group, value);
+        _distributeEpochVotersRewards(validator, value);
     }
 
-    function _distributeEpochVotersRewards(address group, uint256 value)
+    function _distributeEpochVotersRewards(address validator, uint256 value)
     internal
     {
-        uint256 totalForGroup = getActiveVotesForGroup(group);
-        address voters = getActiveVotersForGroup(group);
+        uint256 totalForValidator = getActiveVoteUnitsForValidator(validator);
+        address[] memory voters = getActiveVotersForValidator(validator);
         uint256 total = 0;
         for (uint256 i = 0; i < voters.length; i = i.add(1)) {
-            if (i == voters.length){
+            if (i == voters.length) {
                 break;
             }
             address voterAddress = voters[i];
-            uint256 voteAmount = votes.active.forGroup[group].unitsByAccount(voterAddress);
+            uint256 voteAmount = votes.active.forValidator[validator].unitsByAccount[voterAddress];
             if (voteAmount == 0) {
-                deleteElement(votes.active.forGroup[group].voters, voterAddress, i);
+                deleteElement(votes.active.forValidator[validator].voters, voterAddress, i);
                 voterAddress = voters[i];
             }
             FixidityLib.Fraction memory multiplier = FixidityLib  //比率 事实供给/目标供给
             .newFixed(voteAmount)
-            .divide(totalForGroup);
+            .divide(FixidityLib.newFixed(totalForValidator));
 
-            uint256 voterPayment = FixidityLib  //比率 事实供给/目标供给
+            FixidityLib.Fraction memory voterPayment0 = FixidityLib  //比率 事实供给/目标供给
             .newFixed(value)
             .multiply(multiplier);
 
+            uint256 voterPayment = voterPayment0.value;
             IStableToken stableToken = getStableToken();
             require(stableToken.mint(voterAddress, voterPayment), "mint failed to voter Payment");
             total = total + voterPayment;
@@ -705,105 +660,105 @@ CalledByVm
         }
 
         if (value > total) {
-            emit EpochRewardsRemainDistributedToGroups(group, value - total);
+            emit EpochRewardRemainsDistributedToValidators(validator, value - total);
         }
     }
 
 
     /**
-     * @notice Increments the number of total votes for `group` by `value`.
-     * @param group The validator group whose vote total should be incremented.
+     * @notice Increments the number of total votes for `validator` by `value`.
+     * @param validator The validator validator whose vote total should be incremented.
      * @param value The number of votes to increment.
-     * @param lesser The group receiving fewer votes than the group for which the vote was cast,
-     *   or 0 if that group has the fewest votes of any validator group.
-     * @param greater The group receiving more votes than the group for which the vote was cast,
-     *   or 0 if that group has the most votes of any validator group.
+     * @param lesser The validator receiving fewer votes than the validator for which the vote was cast,
+     *   or 0 if that validator has the fewest votes of any validator validator.
+     * @param greater The validator receiving more votes than the validator for which the vote was cast,
+     *   or 0 if that validator has the most votes of any validator validator.
      */
-    function incrementTotalVotes(address group, uint256 value, address lesser, address greater)
+    function incrementTotalVotes(address validator, uint256 value, address lesser, address greater)
     private
     {
-        uint256 newVoteTotal = votes.total.eligible.getValue(group).add(value);
-        votes.total.eligible.update(group, newVoteTotal, lesser, greater);
+        uint256 newVoteTotal = votes.total.eligible.getValue(validator).add(value);
+        votes.total.eligible.update(validator, newVoteTotal, lesser, greater);
     }
 
     /**
-     * @notice Decrements the number of total votes for `group` by `value`.
-     * @param group The validator group whose vote total should be decremented.
+     * @notice Decrements the number of total votes for `validator` by `value`.
+     * @param validator The validator validator whose vote total should be decremented.
      * @param value The number of votes to decrement.
-     * @param lesser The group receiving fewer votes than the group for which the vote was revoked,
-     *   or 0 if that group has the fewest votes of any validator group.
-     * @param greater The group receiving more votes than the group for which the vote was revoked,
-     *   or 0 if that group has the most votes of any validator group.
+     * @param lesser The validator receiving fewer votes than the validator for which the vote was revoked,
+     *   or 0 if that validator has the fewest votes of any validator validator.
+     * @param greater The validator receiving more votes than the validator for which the vote was revoked,
+     *   or 0 if that validator has the most votes of any validator validator.
      */
-    function decrementTotalVotes(address group, uint256 value, address lesser, address greater)
+    function decrementTotalVotes(address validator, uint256 value, address lesser, address greater)
     private
     {
-        if (votes.total.eligible.contains(group)) {
-            uint256 newVoteTotal = votes.total.eligible.getValue(group).sub(value);
-            votes.total.eligible.update(group, newVoteTotal, lesser, greater);
+        if (votes.total.eligible.contains(validator)) {
+            uint256 newVoteTotal = votes.total.eligible.getValue(validator).sub(value);
+            votes.total.eligible.update(validator, newVoteTotal, lesser, greater);
         }
     }
 
     /**
-     * @notice Marks a group ineligible for electing validators.
-     * @param group The address of the validator group.
+     * @notice Marks a validator ineligible for electing validators.
+     * @param validator The address of the validator validator.
      * @dev Can only be called by the registered "Validators" contract.
      */
-    function markGroupIneligible(address group)
+    function markValidatorIneligible(address validator)
     external
     onlyRegisteredContract(VALIDATORS_REGISTRY_ID)
     {
-        votes.total.eligible.remove(group);
-        emit ValidatorGroupMarkedIneligible(group);
+        votes.total.eligible.remove(validator);
+        emit ValidatorMarkedIneligible(validator);
     }
 
     /**
-     * @notice Marks a group eligible for electing validators.
-     * @param group The address of the validator group.
-     * @param lesser The address of the group that has received fewer votes than this group.
-     * @param greater The address of the group that has received more votes than this group.
+     * @notice Marks a validator eligible for electing validators.
+     * @param validator The address of the validator validator.
+     * @param lesser The address of the validator that has received fewer votes than this validator.
+     * @param greater The address of the validator that has received more votes than this validator.
      */
-    function markGroupEligible(address group, address lesser, address greater)
+    function markValidatorEligible(address validator, address lesser, address greater)
     external
     onlyRegisteredContract(VALIDATORS_REGISTRY_ID)
     {
-        uint256 value = getTotalVotesForGroup(group);
-        votes.total.eligible.insert(group, value, lesser, greater);
-        emit ValidatorGroupMarkedEligible(group);
+        uint256 value = getTotalVotesForValidator(validator);
+        votes.total.eligible.insert(validator, value, lesser, greater);
+        emit ValidatorMarkedEligible(validator);
     }
 
     /**
-     * @notice Increments the number of pending votes for `group` made by `account`.
-     * @param group The address of the validator group.
+     * @notice Increments the number of pending votes for `validator` made by `account`.
+     * @param validator The address of the validator validator.
      * @param account The address of the voting account.
      * @param value The number of votes.
      */
-    function incrementPendingVotes(address group, address account, uint256 value) private {
+    function incrementPendingVotes(address validator, address account, uint256 value) private {
         PendingVotes storage pending = votes.pending;
         pending.total = pending.total.add(value);
 
-        GroupPendingVotes storage groupPending = pending.forGroup[group];
-        groupPending.total = groupPending.total.add(value);
+        ValidatorPendingVotes storage validatorPending = pending.forValidator[validator];
+        validatorPending.total = validatorPending.total.add(value);
 
-        PendingVote storage pendingVote = groupPending.byAccount[account];
+        PendingVote storage pendingVote = validatorPending.byAccount[account];
         pendingVote.value = pendingVote.value.add(value);
         pendingVote.epoch = getEpochNumber();
     }
 
     /**
-     * @notice Decrements the number of pending votes for `group` made by `account`.
-     * @param group The address of the validator group.
+     * @notice Decrements the number of pending votes for `validator` made by `account`.
+     * @param validator The address of the validator validator.
      * @param account The address of the voting account.
      * @param value The number of votes.
      */
-    function decrementPendingVotes(address group, address account, uint256 value) private {
+    function decrementPendingVotes(address validator, address account, uint256 value) private {
         PendingVotes storage pending = votes.pending;
         pending.total = pending.total.sub(value);
 
-        GroupPendingVotes storage groupPending = pending.forGroup[group];
-        groupPending.total = groupPending.total.sub(value);
+        ValidatorPendingVotes storage validatorPending = pending.forValidator[validator];
+        validatorPending.total = validatorPending.total.sub(value);
 
-        PendingVote storage pendingVote = groupPending.byAccount[account];
+        PendingVote storage pendingVote = validatorPending.byAccount[account];
         pendingVote.value = pendingVote.value.sub(value);
         if (pendingVote.value == 0) {
             pendingVote.epoch = 0;
@@ -811,36 +766,36 @@ CalledByVm
     }
 
     /**
-     * @notice Increments the number of active votes for `group` made by `account`.
-     * @param group The address of the validator group.
+     * @notice Increments the number of active votes for `validator` made by `account`.
+     * @param validator The address of the validator validator.
      * @param account The address of the voting account.
      * @param value The number of votes.
      */
-    function incrementActiveVotes(address group, address account, uint256 value)
+    function incrementActiveVotes(address validator, address account, uint256 value)
     private
     returns (uint256)
     {
         ActiveVotes storage active = votes.active;
         active.total = active.total.add(value);
 
-        uint256 units = votesToUnits(group, value);
+        uint256 units = votesToUnits(validator, value);
 
-        GroupActiveVotes storage groupActive = active.forGroup[group];
-        groupActive.total = groupActive.total.add(value);
+        ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
+        validatorActive.total = validatorActive.total.add(value);
 
-        groupActive.totalUnits = groupActive.totalUnits.add(units);
-        groupActive.unitsByAccount[account] = groupActive.unitsByAccount[account].add(units);
-        groupActive.voters.push(account);
+        validatorActive.totalUnits = validatorActive.totalUnits.add(units);
+        validatorActive.unitsByAccount[account] = validatorActive.unitsByAccount[account].add(units);
+        validatorActive.voters.push(account);
         return units;
     }
 
     /**
-     * @notice Decrements the number of active votes for `group` made by `account`.
-     * @param group The address of the validator group.
+     * @notice Decrements the number of active votes for `validator` made by `account`.
+     * @param validator The address of the validator validator.
      * @param account The address of the voting account.
      * @param value The number of votes.
      */
-    function decrementActiveVotes(address group, address account, uint256 value)
+    function decrementActiveVotes(address validator, address account, uint256 value)
     private
     returns (uint256)
     {
@@ -851,57 +806,57 @@ CalledByVm
         // from revoking the last of their votes. The case where value == votes is special cased
         // to prevent this.
         uint256 units = 0;
-        uint256 activeVotes = getActiveVotesForGroupByAccount(group, account);
-        GroupActiveVotes storage groupActive = active.forGroup[group];
+        uint256 activeVotes = getActiveVotesForValidatorByAccount(validator, account);
+        ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
         if (activeVotes == value) {
-            units = groupActive.unitsByAccount[account];
+            units = validatorActive.unitsByAccount[account];
         } else {
-            units = votesToUnits(group, value);
+            units = votesToUnits(validator, value);
         }
 
-        groupActive.total = groupActive.total.sub(value);
-        groupActive.totalUnits = groupActive.totalUnits.sub(units);
-        groupActive.unitsByAccount[account] = groupActive.unitsByAccount[account].sub(units);
+        validatorActive.total = validatorActive.total.sub(value);
+        validatorActive.totalUnits = validatorActive.totalUnits.sub(units);
+        validatorActive.unitsByAccount[account] = validatorActive.unitsByAccount[account].sub(units);
         return units;
     }
 
     /**
      * @notice Returns the number of units corresponding to `value` active votes.
-     * @param group The address of the validator group.
+     * @param validator The address of the validator validator.
      * @param value The number of active votes.
      * @return The corresponding number of units.
      */
-    function votesToUnits(address group, uint256 value) private view returns (uint256) {
-        if (votes.active.forGroup[group].totalUnits == 0) {
+    function votesToUnits(address validator, uint256 value) private view returns (uint256) {
+        if (votes.active.forValidator[validator].totalUnits == 0) {
             return value.mul(UNIT_PRECISION_FACTOR);
         } else {
             return
-            value.mul(votes.active.forGroup[group].totalUnits).div(votes.active.forGroup[group].total);
+            value.mul(votes.active.forValidator[validator].totalUnits).div(votes.active.forValidator[validator].total);
         }
     }
 
     /**
      * @notice Returns the number of active votes corresponding to `value` units.
-     * @param group The address of the validator group.
+     * @param validator The address of the validator validator.
      * @param value The number of units.
      * @return The corresponding number of active votes.
      */
-    function unitsToVotes(address group, uint256 value) private view returns (uint256) {
-        if (votes.active.forGroup[group].totalUnits == 0) {
+    function unitsToVotes(address validator, uint256 value) private view returns (uint256) {
+        if (votes.active.forValidator[validator].totalUnits == 0) {
             return 0;
         } else {// total(增加) / totalUnits 相对应 value也增加
             return
-            value.mul(votes.active.forGroup[group].total).div(votes.active.forGroup[group].totalUnits);
+            value.mul(votes.active.forValidator[validator].total).div(votes.active.forValidator[validator].totalUnits);
         }
     }
 
     /**
-     * @notice Returns the groups that `account` has voted for.
+     * @notice Returns the validators that `account` has voted for.
      * @param account The address of the account casting votes.
-     * @return The groups that `account` has voted for.
+     * @return The validators that `account` has voted for.
      */
-    function getGroupsVotedForByAccount(address account) external view returns (address[] memory) {
-        return votes.groupsVotedFor[account];
+    function getValidatorsVotedForByAccount(address account) external view returns (address[] memory) {
+        return votes.validatorsVotedFor[account];
     }
 
     /**
@@ -918,40 +873,32 @@ CalledByVm
     }
 
     /**
-     * @notice Returns whether or not a group can receive the specified number of votes.
-     * @param group The address of the group.
+     * @notice Returns whether or not a validator can receive the specified number of votes.
+     * @param validator The address of the validator.
      * @param value The number of votes.
-     * @return Whether or not a group can receive the specified number of votes.
-     * @dev Votes are not allowed to be cast that would increase a group's proportion of locked gold
+     * @return Whether or not a validator can receive the specified number of votes.
+     * @dev Votes are not allowed to be cast that would increase a validator's proportion of locked gold
      *   voting for it to greater than
-     *   (numGroupMembers + 1) / min(maxElectableValidators, numRegisteredValidators)
-     * @dev Note that groups may still receive additional votes via rewards even if this function
+     *   (numValidatorMembers + 1) / min(maxElectableValidators, numRegisteredValidators)
+     * @dev Note that validators may still receive additional votes via rewards even if this function
      *   returns false.
      */
-    function canReceiveVotes(address group, uint256 value) public view returns (bool) {
-        uint256 totalVotesForGroup = getTotalVotesForGroup(group).add(value);
-        uint256 left = totalVotesForGroup.mul(
-            Math.min(electableValidators.max, getValidators().getNumRegisteredValidators())
-        );
-        uint256 right = getValidators().getGroupNumMembers(group).add(1).mul(
-            getLockedGold().getTotalLockedGold()
-        );
+    function canReceiveVotes(address validator, uint256 value) public view returns (bool) {
+        uint256 left = getTotalVotesForValidator(validator).add(value);
+        uint256 right = getLockedGold().getTotalLockedGold();
         return left <= right;
     }
 
     /**
-     * @notice Returns the number of votes that a group can receive.
-     * @param group The address of the group.
-     * @return The number of votes that a group can receive.
-     * @dev Votes are not allowed to be cast that would increase a group's proportion of locked gold
+     * @notice Returns the number of votes that a validator can receive.
+     * @return The number of votes that a validator can receive.
+     * @dev Votes are not allowed to be cast that would increase a validator's proportion of locked gold
      *   voting for it to greater than
-     *   (numGroupMembers + 1) / min(maxElectableValidators, numRegisteredValidators)
-     * @dev Note that a group's vote total may exceed this number through rewards or config changes.
+     *   (numValidatorMembers + 1) / min(maxElectableValidators, numRegisteredValidators)
+     * @dev Note that a validator's vote total may exceed this number through rewards or config changes.
      */
-    function getNumVotesReceivable(address group) external view returns (uint256) {
-        uint256 numerator = getValidators().getGroupNumMembers(group).add(1).mul(
-            getLockedGold().getTotalLockedGold()
-        );
+    function getNumVotesReceivable() external view returns (uint256) {
+        uint256 numerator = getLockedGold().getTotalLockedGold();
         uint256 denominator = Math.min(
             electableValidators.max,
             getValidators().getNumRegisteredValidators()
@@ -960,43 +907,43 @@ CalledByVm
     }
 
     /**
-     * @notice Returns the total votes received across all groups.
-     * @return The total votes received across all groups.
+     * @notice Returns the total votes received across all validators.
+     * @return The total votes received across all validators.
      */
     function getTotalVotes() public view returns (uint256) {
         return votes.active.total.add(votes.pending.total);
     }
 
     /**
-     * @notice Returns the active votes received across all groups.
-     * @return The active votes received across all groups.
+     * @notice Returns the active votes received across all validators.
+     * @return The active votes received across all validators.
      */
     function getActiveVotes() public view returns (uint256) {
         return votes.active.total;
     }
 
     /**
-     * @notice Returns the list of validator groups eligible to elect validators.
-     * @return The list of validator groups eligible to elect validators.
+     * @notice Returns the list of validator validators eligible to elect validators.
+     * @return The list of validator validators eligible to elect validators.
      */
-    function getEligibleValidatorGroups() external view returns (address[] memory) {
+    function getEligibleValidators() external view returns (address[] memory) {
         return votes.total.eligible.getKeys();
     }
 
     /**
-     * @notice Returns lists of all validator groups and the number of votes they've received.
-     * @return Lists of all validator groups and the number of votes they've received.
+     * @notice Returns lists of all validator validators and the number of votes they've received.
+     * @return Lists of all validator validators and the number of votes they've received.
      */
-    function getTotalVotesForEligibleValidatorGroups()
+    function getTotalVotesForEligibleValidators()
     external
     view
-    returns (address[] memory groups, uint256[] memory values)
+    returns (address[] memory validators, uint256[] memory values)
     {
         return votes.total.eligible.getElements();
     }
 
     /**
-     * @notice Returns a list of elected validators with seats allocated to groups via the D'Hondt
+     * @notice Returns a list of elected validators with seats allocated to validators via the D'Hondt
      *   method.
      * @return The list of elected validators.
      */
@@ -1005,80 +952,30 @@ CalledByVm
     }
 
     /**
-     * @notice Returns a list of elected validators with seats allocated to groups via the D'Hondt
+     * @notice Returns a list of elected validators with seats allocated to validators via the D'Hondt
      *   method.
      * @return The list of elected validators.
-     * @dev See https://en.wikipedia.org/wiki/D%27Hondt_method#Allocation for more information.
      */
     function electNValidatorSigners(uint256 minElectableValidators, uint256 maxElectableValidators)
     public
     view
     returns (address[] memory)
     {
-        // Groups must have at least `electabilityThreshold` proportion of the total votes to be
+        // Validators must have at least `electabilityThreshold` proportion of the total votes to be
         // considered for the election.
         uint256 requiredVotes = electabilityThreshold
         .multiply(FixidityLib.newFixed(getTotalVotes()))
         .fromFixed();
-        // Only consider groups with at least `requiredVotes` but do not consider more groups than the
+        // Only consider validators with at least `requiredVotes` but do not consider more validators than the
         // max number of electable validators.
-        uint256 numElectionGroups = votes.total.eligible.numElementsGreaterThan(
+        uint256 numElectionValidators = votes.total.eligible.numElementsGreaterThan(
             requiredVotes,
             maxElectableValidators
         );
-        address[] memory electionGroups = votes.total.eligible.headN(numElectionGroups);
-        uint256[] memory numMembers = getValidators().getGroupsNumMembers(electionGroups);
-        // Holds the number of members elected for each of the eligible validator groups.
-        uint256[] memory numMembersElected = new uint256[](electionGroups.length);
-        uint256 totalNumMembersElected = 0;
-
-        uint256[] memory keys = new uint256[](electionGroups.length);
-        FixidityLib.Fraction[] memory votesForNextMember = new FixidityLib.Fraction[](
-            electionGroups.length
-        );
-        for (uint256 i = 0; i < electionGroups.length; i = i.add(1)) {
-            keys[i] = i;
-            votesForNextMember[i] = FixidityLib.newFixed(
-                votes.total.eligible.getValue(electionGroups[i])
-            );
-        }
-
-        // Assign a number of seats to each validator group.
-        while (totalNumMembersElected < maxElectableValidators && electionGroups.length > 0) {
-            uint256 groupIndex = keys[0];
-            // All electable validators have been elected.
-            if (votesForNextMember[groupIndex].unwrap() == 0) break;
-            // All members of the group have been elected
-            if (numMembers[groupIndex] <= numMembersElected[groupIndex]) {
-                votesForNextMember[groupIndex] = FixidityLib.wrap(0);
-            } else {
-                // Elect the next member from the validator group
-                numMembersElected[groupIndex] = numMembersElected[groupIndex].add(1);
-                totalNumMembersElected = totalNumMembersElected.add(1);
-                // If there are already n elected members in a group, the votes for the next member
-                // are total votes of group divided by n+1
-                votesForNextMember[groupIndex] = FixidityLib
-                .newFixed(votes.total.eligible.getValue(electionGroups[groupIndex]))
-                .divide(FixidityLib.newFixed(numMembersElected[groupIndex].add(1)));
-            }
-            Heap.heapifyDown(keys, votesForNextMember);
-        }
+        address[] memory electionValidators = votes.total.eligible.headN(numElectionValidators);
+        uint256 totalNumMembersElected = electionValidators.length;
         require(totalNumMembersElected >= minElectableValidators, "Not enough elected validators");
-        // Grab the top validators from each group that won seats.
-        address[] memory electedValidators = new address[](totalNumMembersElected);
-        totalNumMembersElected = 0;
-        for (uint256 i = 0; i < electionGroups.length; i = i.add(1)) {
-            // We use the validating delegate if one is set.
-            address[] memory electedGroupValidators = getValidators().getTopGroupValidators(
-                electionGroups[i],
-                numMembersElected[i]
-            );
-            for (uint256 j = 0; j < electedGroupValidators.length; j = j.add(1)) {
-                electedValidators[totalNumMembersElected] = electedGroupValidators[j];
-                totalNumMembersElected = totalNumMembersElected.add(1);
-            }
-        }
-        return electedValidators;
+        return electionValidators;
     }
 
     /**
@@ -1097,20 +994,20 @@ CalledByVm
     // Struct to hold local variables for `forceDecrementVotes`.
     // Needed to prevent solc error of "stack too deep" from too many local vars.
     struct DecrementVotesInfo {
-        address[] groups;
+        address[] validators;
         uint256 remainingValue;
     }
 
     /**
      * @notice Reduces the total amount of `account`'s voting gold by `value` by
-     *         iterating over all groups voted for by account.
+     *         iterating over all validators voted for by account.
      * @param account Address to revoke votes from.
      * @param value Maximum amount of votes to revoke.
-     * @param lessers The groups receiving fewer votes than the i'th `group`, or 0 if
-     *                the i'th `group` has the fewest votes of any validator group.
-     * @param greaters The groups receivier more votes than the i'th `group`, or 0 if
-     *                the i'th `group` has the most votes of any validator group.
-     * @param indices The indices of the i'th group in the account's voting list.
+     * @param lessers The validators receiving fewer votes than the i'th `validator`, or 0 if
+     *                the i'th `validator` has the fewest votes of any validator validator.
+     * @param greaters The validators receivier more votes than the i'th `validator`, or 0 if
+     *                the i'th `validator` has the most votes of any validator validator.
+     * @param indices The indices of the i'th validator in the account's voting list.
      * @return Number of votes successfully decremented.
      */
     function forceDecrementVotes(
@@ -1121,20 +1018,20 @@ CalledByVm
         uint256[] calldata indices
     ) external nonReentrant onlyRegisteredContract(LOCKED_GOLD_REGISTRY_ID) returns (uint256) {
         require(value > 0, "Decrement value must be greater than 0.");
-        DecrementVotesInfo memory info = DecrementVotesInfo(votes.groupsVotedFor[account], value);
+        DecrementVotesInfo memory info = DecrementVotesInfo(votes.validatorsVotedFor[account], value);
         require(
-            lessers.length <= info.groups.length &&
+            lessers.length <= info.validators.length &&
             lessers.length == greaters.length &&
             greaters.length == indices.length,
             "Input lengths must be correspond."
         );
         // Iterate in reverse order to hopefully optimize removing pending votes before active votes
         // And to attempt to preserve `account`'s earliest votes (assuming earliest = prefered)
-        for (uint256 i = info.groups.length; i > 0; i = i.sub(1)) {
+        for (uint256 i = info.validators.length; i > 0; i = i.sub(1)) {
             info.remainingValue = info.remainingValue.sub(
                 _decrementVotes(
                     account,
-                    info.groups[i.sub(1)],
+                    info.validators[i.sub(1)],
                     info.remainingValue,
                     lessers[i.sub(1)],
                     greaters[i.sub(1)],
@@ -1149,3 +1046,6 @@ CalledByVm
         return value;
     }
 }
+
+
+
