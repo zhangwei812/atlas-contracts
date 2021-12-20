@@ -48,7 +48,7 @@ interface IValidators {
     external
     view
     returns (address[] memory, uint256, uint256, uint256, uint256[] memory, uint256, uint256);
-  function getGroupNumMembers(address) external view returns (uint256);
+//  function getGroupNumMembers(address) external view returns (uint256);
   function getTopGroupValidators(address, uint256) external view returns (address[] memory);
   function getGroupsNumMembers(address[] calldata accounts)
     external

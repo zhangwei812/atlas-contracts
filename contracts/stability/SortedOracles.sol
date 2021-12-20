@@ -10,9 +10,11 @@ import "../common/FixidityLib.sol";
 import "../common/Initializable.sol";
 import "../common/linkedlists/AddressSortedLinkedListWithMedian.sol";
 import "../common/linkedlists/SortedLinkedListWithMedian.sol";
-
+// 链上的为CELO   CELO相对于美元有一定价值 或者对BTC ETH
 /**
  * @title Maintains a sorted list of oracle exchange rates between CELO and other currencies.
+ 稳定机制需要知道 CELO 相对于美元的市场价格。该值在 SortedOracles 智能合约中在链上可用。
+ 通过治理，选择报告者白名单。允许这些地址向 SortedOracles 智能合约报告。智能合约保留了每个报告者最近报告的列表
  */
 contract SortedOracles is ISortedOracles, ICeloVersionedContract, Ownable, Initializable {
   using SafeMath for uint256;
@@ -107,6 +109,7 @@ contract SortedOracles is ISortedOracles, ICeloVersionedContract, Ownable, Initi
    * @notice Adds a new Oracle.
    * @param token The address of the token.
    * @param oracleAddress The address of the oracle.
+   // 往其中添加白名单账号 去跟新汇率
    */
   function addOracle(address token, address oracleAddress) external onlyOwner {
     require(
@@ -144,7 +147,9 @@ contract SortedOracles is ISortedOracles, ICeloVersionedContract, Ownable, Initi
   /**
    * @notice Removes a report that is expired.
    * @param token The address of the token for which the CELO exchange rate is being reported.
+   正在报告其CELO汇率的令牌的地址。
    * @param n The number of expired reports to remove, at most (deterministic upper gas bound).
+   最多要删除的过期报告数（确定的上限）。
    */
   function removeExpiredReports(address token, uint256 n) external {
     require(
@@ -178,8 +183,8 @@ contract SortedOracles is ISortedOracles, ICeloVersionedContract, Ownable, Initi
   }
 
   /**
-   * @notice Updates an oracle value and the median.
-   * @param token The address of the token for which the CELO exchange rate is being reported.
+   * @notice Updates an oracle value and the median.中值的
+   * @param token The address of the token for which the CELO exchange rate is being reported.  正在报告其CELO汇率的令牌的地址。
    * @param value The amount of `token` equal to one CELO, expressed as a fixidity value.
    * @param lesserKey The element which should be just left of the new oracle value.
    * @param greaterKey The element which should be just right of the new oracle value.
@@ -232,11 +237,14 @@ contract SortedOracles is ISortedOracles, ICeloVersionedContract, Ownable, Initi
 
   /**
    * @notice Returns the median rate.
-   * @param token The address of the token for which the CELO exchange rate is being reported.
+   * @param token The address of the token for which the CELO exchange rate is being reported.  正在报告其CELO汇率的令牌的地址。
    * @return The median exchange rate for `token`.
+   白名单维护汇率列表列表
+   返回一个 分子 分母
    */
   function medianRate(address token) external view returns (uint256, uint256) {
     return (rates[token].getMedianValue(), numRates(token) == 0 ? 0 : FIXED1_UINT);
+    // 得到汇率                看列表中白名单个数
   }
 
   /**

@@ -89,7 +89,7 @@ contract GoldToken is
   }
 
   /**
-   * @notice Approve a user to transfer CELO on behalf of another user.
+   * @notice Approve a user to transfer CELO on behalf of another user.批准一个用户代表另一个用户转让CELO。
    * @param spender The address which is being approved to spend CELO.
    * @param value The amount of CELO approved to the spender.
    * @return True if the transaction succeeds.

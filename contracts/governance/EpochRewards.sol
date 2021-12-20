@@ -27,15 +27,17 @@ contract EpochRewards is
   using SafeMath for uint256;
 
   uint256 constant GENESIS_GOLD_SUPPLY = 600000000 ether; // 600 million Gold
-  uint256 constant GOLD_SUPPLY_CAP = 1000000000 ether; // 1 billion Gold
+  uint256 constant GOLD_SUPPLY_CAP =    1000000000 ether; // 1 billion Gold
   uint256 constant YEARS_LINEAR = 15;
   uint256 constant SECONDS_LINEAR = YEARS_LINEAR * 365 * 1 days;
 
   // This struct governs how the rewards multiplier should deviate from 1.0 based on the ratio of
   // supply remaining to target supply remaining.
+  //此结构控制奖励乘数如何根据以下比率偏离1.0
+  //剩余供应至目标剩余供应。
   struct RewardsMultiplierAdjustmentFactors {
-    FixidityLib.Fraction underspend;
-    FixidityLib.Fraction overspend;
+    FixidityLib.Fraction underspend; //低于目标供给
+    FixidityLib.Fraction overspend; //超出目标供给
   }
 
   // This struct governs the multiplier on the target rewards to give out in a given epoch due to
@@ -50,14 +52,15 @@ contract EpochRewards is
     FixidityLib.Fraction max;
   }
 
-  // This struct governs the target yield awarded to voters in validator elections.
+  // This struct governs the target yield awarded to voters in validator elections.此结构控制在验证器选举中授予投票者的目标收益率。
   struct TargetVotingYieldParameters {
-    // The target yield awarded to users voting in validator elections.
+    // The target yield awarded to users voting in validator elections.            授予在验证器选举中投票的用户的目标收益率。
     FixidityLib.Fraction target;
     // Governs the adjustment of the target yield based on the deviation of the percentage of
     // Gold voting in validator elections from the `targetVotingGoldFraction`.
+    //根据验证器选举中的黄金投票百分比与“targetVotingGoldFraction”的偏差，管理目标收益率的调整。-> 用于调整收益率
     FixidityLib.Fraction adjustmentFactor;
-    // The maximum target yield awarded to users voting in validator elections.
+    // The maximum target yield awarded to users voting in validator elections.     授予在验证程序选举中投票的用户的最大目标收益率。
     FixidityLib.Fraction max;
   }
 
@@ -334,12 +337,13 @@ contract EpochRewards is
   function getTargetGoldTotalSupply() public view returns (uint256) {
     uint256 timeSinceInitialization = now.sub(startTime);
     if (timeSinceInitialization < SECONDS_LINEAR) {
-      // Pay out half of all block rewards linearly.
+      // Pay out half of all block rewards linearly.支付所有块奖励的一半。
       uint256 linearRewards = GOLD_SUPPLY_CAP.sub(GENESIS_GOLD_SUPPLY).div(2);
-      uint256 targetRewards = linearRewards.mul(timeSinceInitialization).div(SECONDS_LINEAR);
+      uint256 targetRewards = linearRewards.mul(timeSinceInitialization).div(SECONDS_LINEAR); // 公式
       return targetRewards.add(GENESIS_GOLD_SUPPLY);
     } else {
       require(false, "Block reward calculation for years 15-30 unimplemented");
+      //未实施15-30年的集体奖励计算 这里没有写好
       return 0;
     }
   }
@@ -354,19 +358,19 @@ contract EpochRewards is
     view
     returns (FixidityLib.Fraction memory)
   {
-    uint256 targetSupply = getTargetGoldTotalSupply();
-    uint256 totalSupply = getGoldToken().totalSupply();
-    uint256 remainingSupply = GOLD_SUPPLY_CAP.sub(totalSupply.add(targetGoldSupplyIncrease));
-    uint256 targetRemainingSupply = GOLD_SUPPLY_CAP.sub(targetSupply);
-    FixidityLib.Fraction memory remainingToTargetRatio = FixidityLib
+    uint256 targetSupply = getTargetGoldTotalSupply(); // 目标供给
+    uint256 totalSupply = getGoldToken().totalSupply();// 事实供给
+    uint256 remainingSupply = GOLD_SUPPLY_CAP.sub(totalSupply.add(targetGoldSupplyIncrease)); // 增加量-> 剩余量
+    uint256 targetRemainingSupply = GOLD_SUPPLY_CAP.sub(targetSupply); // 目标剩余供给
+    FixidityLib.Fraction memory remainingToTargetRatio = FixidityLib  //比率 事实供给/目标供给
       .newFixed(remainingSupply)
       .divide(FixidityLib.newFixed(targetRemainingSupply));
-    if (remainingToTargetRatio.gt(FixidityLib.fixed1())) {
-      FixidityLib.Fraction memory delta = remainingToTargetRatio
+    if (remainingToTargetRatio.gt(FixidityLib.fixed1())) {  //超出目标供给
+      FixidityLib.Fraction memory delta = remainingToTargetRatio //超出部分 乘以乘数
         .subtract(FixidityLib.fixed1())
         .multiply(rewardsMultiplierParams.adjustmentFactors.underspend);
       FixidityLib.Fraction memory multiplier = FixidityLib.fixed1().add(delta);
-      if (multiplier.lt(rewardsMultiplierParams.max)) {
+      if (multiplier.lt(rewardsMultiplierParams.max)) {  //超出预期最大值处理
         return multiplier;
       } else {
         return rewardsMultiplierParams.max;
@@ -400,11 +404,12 @@ contract EpochRewards is
 
   /**
    * @notice Returns the total target epoch payments to validators, converted to Gold.
+     将目标历元付款总额返回给验证器，并转换为黄金。
    * @return The total target epoch payments to validators, converted to Gold.
    */
   function getTargetTotalEpochPaymentsInGold() public view returns (uint256) {
     address stableTokenAddress = registry.getAddressForOrDie(STABLE_TOKEN_REGISTRY_ID);
-    (uint256 numerator, uint256 denominator) = getSortedOracles().medianRate(stableTokenAddress);
+    (uint256 numerator, uint256 denominator) = getSortedOracles().medianRate(stableTokenAddress); //与美元的汇率关系
     return
       numberValidatorsInCurrentSet().mul(targetValidatorEpochPayment).mul(denominator).div(
         numerator
@@ -415,9 +420,9 @@ contract EpochRewards is
    * @notice Returns the target gold supply increase used in calculating the rewards multiplier.
    * @return The target increase in gold w/out the rewards multiplier.
    */
-  function _getTargetGoldSupplyIncrease() internal view returns (uint256) {
+  function _getTargetGoldSupplyIncrease() internal view returns (uint256) { //增加的金币不包括奖励增加的
     uint256 targetEpochRewards = getTargetVoterRewards();
-    uint256 targetTotalEpochPaymentsInGold = getTargetTotalEpochPaymentsInGold();
+    uint256 targetTotalEpochPaymentsInGold = getTargetTotalEpochPaymentsInGold();//按照汇率对应gold
     uint256 targetGoldSupplyIncrease = targetEpochRewards.add(targetTotalEpochPaymentsInGold);
     // increase /= (1 - fraction) st the final community reward is fraction * increase
     targetGoldSupplyIncrease = FixidityLib
@@ -437,7 +442,7 @@ contract EpochRewards is
     return _getRewardsMultiplier(_getTargetGoldSupplyIncrease()).unwrap();
   }
 
-  /**
+  /** 返回验证程序选举中用于投票的浮动黄金的分数。
    * @notice Returns the fraction of floating Gold being used for voting in validator elections.
    * @return The fraction of floating Gold being used for voting in validator elections.
    */
@@ -449,19 +454,20 @@ contract EpochRewards is
 
   /**
    * @notice Updates the target voting yield based on the difference between the target and current
-   *   voting Gold fraction.
+   *   voting Gold fraction.   根据目标和当前投票黄金分数之间的差异更新目标投票收益率。-> 跟新投票收益率分数
    */
   function _updateTargetVotingYield() internal onlyWhenNotFrozen {
-    FixidityLib.Fraction memory votingGoldFraction = FixidityLib.wrap(getVotingGoldFraction());
-    if (votingGoldFraction.gt(targetVotingGoldFraction)) {
-      FixidityLib.Fraction memory votingGoldFractionDelta = votingGoldFraction.subtract(
+    FixidityLib.Fraction memory votingGoldFraction = FixidityLib.wrap(getVotingGoldFraction()); // 用于投票的gold/all gold
+    if (votingGoldFraction.gt(targetVotingGoldFraction)) {//1. 如果votingGoldFraction > targetVotingGoldFraction(原始设定为0.5)
+      FixidityLib.Fraction memory votingGoldFractionDelta = votingGoldFraction.subtract( // 算出差值 -
         targetVotingGoldFraction
       );
-      FixidityLib.Fraction memory targetVotingYieldDelta = votingGoldFractionDelta.multiply(
+      FixidityLib.Fraction memory targetVotingYieldDelta = votingGoldFractionDelta.multiply( //差值 * adjustmentFactor
         targetVotingYieldParams.adjustmentFactor
       );
-      if (targetVotingYieldDelta.gte(targetVotingYieldParams.target)) {
-        targetVotingYieldParams.target = FixidityLib.newFixed(0);
+      //.target 用于 getTargetVoterRewards()
+      if (targetVotingYieldDelta.gte(targetVotingYieldParams.target)) {  // >=
+        targetVotingYieldParams.target = FixidityLib.newFixed(0); //超出太多不进行奖励
       } else {
         targetVotingYieldParams.target = targetVotingYieldParams.target.subtract(
           targetVotingYieldDelta
@@ -496,6 +502,9 @@ contract EpochRewards is
    * @notice Determines if the reserve is low enough to demand a diversion from
    *    the community reward. Targets initial critical ratio of 2 with a linear
    *    decline until 25 years have passed where the critical ratio will be 1.
+确定储量是否足够低，以要求从
+社区奖励。目标初始临界比为2，线性
+下降至25年后，临界比率为1。
    */
   function isReserveLow() external view returns (bool) {
     // critical reserve ratio = 2 - time in second / 25 years
@@ -515,7 +524,10 @@ contract EpochRewards is
 
   /**
    * @notice Calculates the per validator epoch payment and the total rewards to voters.
-   * @return The per validator epoch reward, the total rewards to voters, the total community
+   * @return
+   The per validator epoch reward, //给每一届的验证者
+   the total rewards to voters,   //给投票者
+   the total community             //给社区（组）
    * reward, and the total carbon offsetting partner reward.
    */
   function calculateTargetEpochRewards()
@@ -524,8 +536,8 @@ contract EpochRewards is
     returns (uint256, uint256, uint256, uint256)
   {
     uint256 targetVoterReward = getTargetVoterRewards();
-    uint256 targetGoldSupplyIncrease = _getTargetGoldSupplyIncrease();
-    FixidityLib.Fraction memory rewardsMultiplier = _getRewardsMultiplier(targetGoldSupplyIncrease);
+    uint256 targetGoldSupplyIncrease = _getTargetGoldSupplyIncrease();  // 目标增加金币
+    FixidityLib.Fraction memory rewardsMultiplier = _getRewardsMultiplier(targetGoldSupplyIncrease); //奖励乘数
     return (
       FixidityLib.newFixed(targetValidatorEpochPayment).multiply(rewardsMultiplier).fromFixed(),
       FixidityLib.newFixed(targetVoterReward).multiply(rewardsMultiplier).fromFixed(),

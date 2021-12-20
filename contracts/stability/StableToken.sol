@@ -76,6 +76,7 @@ contract StableToken is
   /**
    * @notice Recomputes and updates inflation factor if more than `updatePeriod`
    * has passed since last update.
+   //跟新通货膨胀因子
    */
   modifier updateInflationFactor() {
     FixidityLib.Fraction memory updatedInflationFactor;

@@ -14,6 +14,7 @@ import "../common/interfaces/ICeloVersionedContract.sol";
 import "../common/libraries/ReentrancyGuard.sol";
 
 /**
+   确保Stabletoken与其挂钩的价格稳定
  * @title Ensures price stability of StableTokens with respect to their pegs
  */
 contract Reserve is
@@ -188,8 +189,9 @@ contract Reserve is
 
   /**
    * @notice Sets target allocations for CELO and a diversified basket of non-Celo assets.
-   * @param symbols The symbol of each asset in the Reserve portfolio.
-   * @param weights The weight for the corresponding asset as unwrapped Fixidity.Fraction.
+   为CELO和非CELO资产的多元化篮子设定目标配置。
+   * @param symbols The symbol of each asset in the Reserve portfolio. 储备组合中每项资产的符号。
+   * @param weights The weight for the corresponding asset as unwrapped Fixidity.Fraction.  作为未包装固定性的相应资产的权重。小部分
    */
   function setAssetAllocations(bytes32[] memory symbols, uint256[] memory weights)
     public
@@ -431,6 +433,7 @@ contract Reserve is
 
   /**
    * @notice Returns the tobin tax, recomputing it if it's stale.
+   返回托宾税，如果已过期，则重新计算。
    * @return The tobin tax amount as a fraction.
    */
   function getOrComputeTobinTax() external nonReentrant returns (uint256, uint256) {
@@ -489,7 +492,7 @@ contract Reserve is
   }
 
   /**
-   * @notice Returns the amount of CELO included in the reserve.
+   * @notice Returns the amount of CELO included in the reserve.  Gold就是CELO
    * @return The CELO amount included in the reserve.
    */
   function getReserveGoldBalance() public view returns (uint256) {
@@ -532,6 +535,7 @@ contract Reserve is
 
   /**
    * @notice Computes the ratio of current reserve balance to total stable token valuation.
+    计算当前准备金余额与总稳定代币估值的比率。
    * @return Reserve ratio in a fixed point format.
    */
   function getReserveRatio() public view returns (uint256) {
