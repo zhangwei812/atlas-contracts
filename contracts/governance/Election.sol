@@ -66,8 +66,8 @@ CalledByVm
         // that voter times the total number of active votes divided by the total number of active
         // vote units.
         //投票人的有效投票总数 = 该投票人的有效投票单位数 * (有效投票总数 / 有效投票单位总数)
-        uint256 totalUnits; //将投票数按照（有效投票）单位换算
-        mapping(address => uint256) unitsByAccount; // voter => units
+//        uint256 totalUnits; //将投票数按照（有效投票）单位换算
+        mapping(address => uint256) valueByAccount; // voter => units
         address[] voters;
     }
 
@@ -508,7 +508,8 @@ CalledByVm
     view
     returns (uint256)
     {
-        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
+//        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
+        return votes.active.forValidator[validator].valueByAccount[account];
     }
 
     function getActiveVotesForValidator(address validator, address account)
@@ -516,7 +517,8 @@ CalledByVm
     view
     returns (uint256)
     {
-        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
+//        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
+        return votes.active.forValidator[validator].valueByAccount[account];
     }
 
     /**
@@ -546,7 +548,7 @@ CalledByVm
     view
     returns (uint256)
     {
-        return votes.active.forValidator[validator].unitsByAccount[account];
+        return votes.active.forValidator[validator].valueByAccount[account];
     }
 
     /**
@@ -554,10 +556,12 @@ CalledByVm
      * @param validator The address of the validator validator.
      * @return The total active vote units made for `validator`.
      */
-    function getActiveVoteUnitsForValidator(address validator) public view returns (uint256) {
-        return votes.active.forValidator[validator].totalUnits;
+//    function getActiveVoteUnitsForValidator(address validator) public view returns (uint256) {
+//        return votes.active.forValidator[validator].totalUnits;
+//    }
+    function getActiveVotesForValidator(address validator) public view returns (uint256) {
+        return votes.active.forValidator[validator].total;
     }
-
     /**
      * @notice Returns the total votes made for `validator`.
      * @param validator The address of the validator validator.
@@ -631,7 +635,7 @@ CalledByVm
     function _distributeEpochVotersRewards(address validator, uint256 value)
     internal
     {
-        uint256 totalForValidator = getActiveVoteUnitsForValidator(validator);
+        uint256 totalForValidator = getActiveVotesForValidator(validator);
         address[] memory voters = getActiveVotersForValidator(validator);
         uint256 total = 0;
         for (uint256 i = 0; i < voters.length; i = i.add(1)) {
@@ -639,7 +643,7 @@ CalledByVm
                 break;
             }
             address voterAddress = voters[i];
-            uint256 voteAmount = votes.active.forValidator[validator].unitsByAccount[voterAddress];
+            uint256 voteAmount = votes.active.forValidator[validator].valueByAccount[voterAddress];
             if (voteAmount == 0) {
                 deleteElement(votes.active.forValidator[validator].voters, voterAddress, i);
                 voterAddress = voters[i];
@@ -778,15 +782,15 @@ CalledByVm
         ActiveVotes storage active = votes.active;
         active.total = active.total.add(value);
 
-        uint256 units = votesToUnits(validator, value);
+//        uint256 units = votesToUnits(validator, value);
 
         ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
         validatorActive.total = validatorActive.total.add(value);
 
-        validatorActive.totalUnits = validatorActive.totalUnits.add(units);
-        validatorActive.unitsByAccount[account] = validatorActive.unitsByAccount[account].add(units);
+//        validatorActive.totalUnits = validatorActive.totalUnits.add(units);
+        validatorActive.valueByAccount[account] = validatorActive.valueByAccount[account].add(value);
         validatorActive.voters.push(account);
-        return units;
+        return value;
     }
 
     /**
@@ -805,19 +809,19 @@ CalledByVm
         // Rounding may cause votesToUnits to return 0 for value != 0, preventing users
         // from revoking the last of their votes. The case where value == votes is special cased
         // to prevent this.
-        uint256 units = 0;
-        uint256 activeVotes = getActiveVotesForValidatorByAccount(validator, account);
+        uint256 amount = value;
+//        uint256 activeVotes = getActiveVotesForValidatorByAccount(validator, account);
         ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
-        if (activeVotes == value) {
-            units = validatorActive.unitsByAccount[account];
-        } else {
-            units = votesToUnits(validator, value);
-        }
+//        if (activeVotes == value) {
+//            amount = validatorActive.unitsByAccount[account];
+//        } else {
+//            amount = votesToUnits(validator, value);
+//        }
 
         validatorActive.total = validatorActive.total.sub(value);
-        validatorActive.totalUnits = validatorActive.totalUnits.sub(units);
-        validatorActive.unitsByAccount[account] = validatorActive.unitsByAccount[account].sub(units);
-        return units;
+//        validatorActive.totalUnits = validatorActive.totalUnits.sub(units);
+        validatorActive.valueByAccount[account] = validatorActive.valueByAccount[account].sub(amount);
+        return amount;
     }
 
     /**
@@ -826,14 +830,14 @@ CalledByVm
      * @param value The number of active votes.
      * @return The corresponding number of units.
      */
-    function votesToUnits(address validator, uint256 value) private view returns (uint256) {
-        if (votes.active.forValidator[validator].totalUnits == 0) {
-            return value.mul(UNIT_PRECISION_FACTOR);
-        } else {
-            return
-            value.mul(votes.active.forValidator[validator].totalUnits).div(votes.active.forValidator[validator].total);
-        }
-    }
+//    function votesToUnits(address validator, uint256 value) private view returns (uint256) {
+//        if (votes.active.forValidator[validator].totalUnits == 0) {
+//            return value.mul(UNIT_PRECISION_FACTOR);
+//        } else {
+//            return
+//            value.mul(votes.active.forValidator[validator].totalUnits).div(votes.active.forValidator[validator].total);
+//        }
+//    }
 
     /**
      * @notice Returns the number of active votes corresponding to `value` units.
@@ -841,14 +845,14 @@ CalledByVm
      * @param value The number of units.
      * @return The corresponding number of active votes.
      */
-    function unitsToVotes(address validator, uint256 value) private view returns (uint256) {
-        if (votes.active.forValidator[validator].totalUnits == 0) {
-            return 0;
-        } else {// total(增加) / totalUnits 相对应 value也增加
-            return
-            value.mul(votes.active.forValidator[validator].total).div(votes.active.forValidator[validator].totalUnits);
-        }
-    }
+//    function unitsToVotes(address validator, uint256 value) private view returns (uint256) {
+//        if (votes.active.forValidator[validator].totalUnits == 0) {
+//            return 0;
+//        } else {// total(增加) / totalUnits 相对应 value也增加
+//            return
+//            value.mul(votes.active.forValidator[validator].total).div(votes.active.forValidator[validator].totalUnits);
+//        }
+//    }
 
     /**
      * @notice Returns the validators that `account` has voted for.
