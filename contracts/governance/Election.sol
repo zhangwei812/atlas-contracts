@@ -66,7 +66,7 @@ CalledByVm
         // that voter times the total number of active votes divided by the total number of active
         // vote units.
         //投票人的有效投票总数 = 该投票人的有效投票单位数 * (有效投票总数 / 有效投票单位总数)
-//        uint256 totalUnits; //将投票数按照（有效投票）单位换算
+        //        uint256 totalUnits; //将投票数按照（有效投票）单位换算
         mapping(address => uint256) valueByAccount; // voter => units
         address[] voters;
     }
@@ -508,7 +508,7 @@ CalledByVm
     view
     returns (uint256)
     {
-//        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
+        //        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
         return votes.active.forValidator[validator].valueByAccount[account];
     }
 
@@ -517,7 +517,7 @@ CalledByVm
     view
     returns (uint256)
     {
-//        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
+        //        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
         return votes.active.forValidator[validator].valueByAccount[account];
     }
 
@@ -556,9 +556,9 @@ CalledByVm
      * @param validator The address of the validator validator.
      * @return The total active vote units made for `validator`.
      */
-//    function getActiveVoteUnitsForValidator(address validator) public view returns (uint256) {
-//        return votes.active.forValidator[validator].totalUnits;
-//    }
+    //    function getActiveVoteUnitsForValidator(address validator) public view returns (uint256) {
+    //        return votes.active.forValidator[validator].totalUnits;
+    //    }
     function getActiveVotesForValidator(address validator) public view returns (uint256) {
         return votes.active.forValidator[validator].total;
     }
@@ -598,8 +598,9 @@ CalledByVm
         return votes.total.eligible.contains(validator);
     }
 
-    function getTopValidators(uint256 n) external view returns (address[] memory) {
-        return votes.total.eligible.headN(n);
+    function getTopValidators(uint256 topNum) external view returns (address[] memory) {
+        uint256 numElectionValidators = votes.total.eligible.numElementsGreaterThan(0,topNum);
+        return votes.total.eligible.headN(numElectionValidators);
     }
 
 
@@ -722,7 +723,7 @@ CalledByVm
      * @param lesser The address of the validator that has received fewer votes than this validator.
      * @param greater The address of the validator that has received more votes than this validator.
      */
-    function markValidatorEligible(address validator, address lesser, address greater)
+    function markValidatorEligible(address lesser,address greater, address validator )
     external
     onlyRegisteredContract(VALIDATORS_REGISTRY_ID)
     {
@@ -782,12 +783,12 @@ CalledByVm
         ActiveVotes storage active = votes.active;
         active.total = active.total.add(value);
 
-//        uint256 units = votesToUnits(validator, value);
+        //        uint256 units = votesToUnits(validator, value);
 
         ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
         validatorActive.total = validatorActive.total.add(value);
 
-//        validatorActive.totalUnits = validatorActive.totalUnits.add(units);
+        //        validatorActive.totalUnits = validatorActive.totalUnits.add(units);
         validatorActive.valueByAccount[account] = validatorActive.valueByAccount[account].add(value);
         validatorActive.voters.push(account);
         return value;
@@ -810,49 +811,20 @@ CalledByVm
         // from revoking the last of their votes. The case where value == votes is special cased
         // to prevent this.
         uint256 amount = value;
-//        uint256 activeVotes = getActiveVotesForValidatorByAccount(validator, account);
+        //        uint256 activeVotes = getActiveVotesForValidatorByAccount(validator, account);
         ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
-//        if (activeVotes == value) {
-//            amount = validatorActive.unitsByAccount[account];
-//        } else {
-//            amount = votesToUnits(validator, value);
-//        }
+        //        if (activeVotes == value) {
+        //            amount = validatorActive.unitsByAccount[account];
+        //        } else {
+        //            amount = votesToUnits(validator, value);
+        //        }
 
         validatorActive.total = validatorActive.total.sub(value);
-//        validatorActive.totalUnits = validatorActive.totalUnits.sub(units);
+        //        validatorActive.totalUnits = validatorActive.totalUnits.sub(units);
         validatorActive.valueByAccount[account] = validatorActive.valueByAccount[account].sub(amount);
         return amount;
     }
 
-    /**
-     * @notice Returns the number of units corresponding to `value` active votes.
-     * @param validator The address of the validator validator.
-     * @param value The number of active votes.
-     * @return The corresponding number of units.
-     */
-//    function votesToUnits(address validator, uint256 value) private view returns (uint256) {
-//        if (votes.active.forValidator[validator].totalUnits == 0) {
-//            return value.mul(UNIT_PRECISION_FACTOR);
-//        } else {
-//            return
-//            value.mul(votes.active.forValidator[validator].totalUnits).div(votes.active.forValidator[validator].total);
-//        }
-//    }
-
-    /**
-     * @notice Returns the number of active votes corresponding to `value` units.
-     * @param validator The address of the validator validator.
-     * @param value The number of units.
-     * @return The corresponding number of active votes.
-     */
-//    function unitsToVotes(address validator, uint256 value) private view returns (uint256) {
-//        if (votes.active.forValidator[validator].totalUnits == 0) {
-//            return 0;
-//        } else {// total(增加) / totalUnits 相对应 value也增加
-//            return
-//            value.mul(votes.active.forValidator[validator].total).div(votes.active.forValidator[validator].totalUnits);
-//        }
-//    }
 
     /**
      * @notice Returns the validators that `account` has voted for.

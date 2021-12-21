@@ -1,7 +1,7 @@
 pragma solidity ^0.5.13;
 
 interface IValidators {
-    function registerValidator(bytes calldata, bytes calldata, bytes calldata, uint256 commission, address lesser, address greater)
+    function registerValidator(uint256 commission, address lesser,address greater,bytes calldata, bytes calldata, bytes calldata)
     external
     returns (bool);
 
@@ -44,7 +44,7 @@ interface IValidators {
     returns (bytes memory, bytes memory, uint256,address, uint256, uint256,uint256, uint256,uint256);
 
     //  function getValidatorNumMembers(address) external view returns (uint256);
-    function getTopValidators(address, uint256) external view returns (address[] memory);
+    function getTopValidators(uint256) external view returns (address[] memory);
 
     function getNumRegisteredValidators() external view returns (uint256);
 

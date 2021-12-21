@@ -324,25 +324,10 @@ CalledByVm
         emit ValidatorRegistered(account, commission);
         validator.registerTimestamp = now;
         require(meetsAccountLockedGoldRequirements(account), "Validator requirements not met");
-        getElection().markValidatorEligible(account, lesser, greater);
+        getElection().markValidatorEligible(lesser, greater, account);
         return true;
     }
 
-    //    function registerValidatorValidator(uint256 commission) external nonReentrant returns (bool) {
-    //        require(commission <= FixidityLib.fixed1().unwrap(), "Commission can't be greater than 100%");
-    //        address account = getAccounts().validatorSignerToAccount(msg.sender);
-    //        require(!isValidator(account), "Already registered as validator");
-    //        require(!isValidatorValidator(account), "Already registered as validator");
-    //        uint256 lockedGoldBalance = getLockedGold().getAccountTotalLockedGold(account);
-    //        require(lockedGoldBalance >= validatorLockedGoldRequirements.value, "Not enough locked gold");
-    //        ValidatorValidator storage validator = validators[account];
-    //        validator.exists = true;
-    //        validator.commission = FixidityLib.wrap(commission);
-    //        validator.slashInfo = SlashingInfo(FixidityLib.fixed1(), 0);
-    //        registeredValidators.push(account);
-    //        emit ValidatorValidatorRegistered(account, commission);
-    //        return true;
-    //    }
 
     /**
      * @notice Returns the parameters that govern how a validator's score is calculated.
@@ -498,7 +483,9 @@ CalledByVm
             validatorLockedGoldRequirements.duration
         );
         require(requirementEndTime < now, "Not yet requirement end time");
-
+        //Marks a validator ineligible for electing validators.
+        //Will not participate in validation
+        getElection().markValidatorIneligible(account);
         // Remove the validator.
         deleteElement(registeredValidators, account, index);
         delete validators[account];
@@ -747,7 +734,7 @@ CalledByVm
      * @param n The number of members to return.
      * @return The top n validator members for a particular validator.
      */
-    function getTopValidators( uint256 n)
+    function getTopValidators(uint256 n)
     external
     view
     returns (address[] memory)
