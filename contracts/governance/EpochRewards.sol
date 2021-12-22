@@ -27,7 +27,7 @@ CalledByVm
     using SafeMath for uint256;
 
     uint256 constant GENESIS_GOLD_SUPPLY = 600000000 ether; // 600 million Gold
-//    uint256 constant GOLD_SUPPLY_CAP = 1000000000 ether; // 1 billion Gold
+    //    uint256 constant GOLD_SUPPLY_CAP = 1000000000 ether; // 1 billion Gold
     uint256 constant SECONDS_LINEAR = 365 * 1 days;
     uint256 constant YEAR_GOLD_SUPPLY = 200000000 ether;// Annual fixed reward 200 million Gold
     // This struct governs how the rewards multiplier should deviate from 1.0 based on the ratio of
@@ -306,7 +306,7 @@ CalledByVm
      * @return The target Gold supply according to the epoch rewards target schedule.
      */
     function getTargetGoldTotalSupply() public view returns (uint256) {
-        uint256 timeSinceInitialization = now.sub(startTime);
+        uint256 timeSinceInitialization = now.sub(startTime)+1;
 
         timeSinceInitialization = timeSinceInitialization.mod(SECONDS_LINEAR);
         // Pay out half of all block rewards linearly.支付所有块奖励的一半。
@@ -327,16 +327,23 @@ CalledByVm
     view
     returns (FixidityLib.Fraction memory)
     {
-        uint256 targetSupply = getTargetGoldTotalSupply();   // 目标供给
+        uint256 targetSupply = getTargetGoldTotalSupply(); // 目标供给
         uint256 totalSupply = getGoldToken().totalSupply(); // 事实供给
-        uint256 goldSupplyCap = GENESIS_GOLD_SUPPLY.add(targetGoldSupplyIncrease);
 
-        uint256 remainingSupply = goldSupplyCap.sub(totalSupply.add(targetGoldSupplyIncrease)); // 增加量-> 剩余量
+        uint256 timeSinceInitialization = now.sub(startTime)+1;
+        uint256 numYear = (timeSinceInitialization.add(365 * 1 days).sub(1)).div(365 * 1 days);
+        uint256 goldSupplyCap = GENESIS_GOLD_SUPPLY.add(numYear * YEAR_GOLD_SUPPLY);
+
+        uint256 remainingSupply = goldSupplyCap.sub(totalSupply.add(targetGoldSupplyIncrease));
+        // 增加量-> 剩余量
         uint256 targetRemainingSupply = goldSupplyCap.sub(targetSupply);
+
+        require(goldSupplyCap != targetSupply, "GG2");
         // 目标剩余供给
         FixidityLib.Fraction memory remainingToTargetRatio = FixidityLib  //比率 事实供给/目标供给
         .newFixed(remainingSupply)
         .divide(FixidityLib.newFixed(targetRemainingSupply));
+
         if (remainingToTargetRatio.gt(FixidityLib.fixed1())) {//超出目标供给
             FixidityLib.Fraction memory delta = remainingToTargetRatio //超出部分 乘以乘数
             .subtract(FixidityLib.fixed1())

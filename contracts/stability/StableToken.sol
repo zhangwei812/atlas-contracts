@@ -232,7 +232,7 @@ contract StableToken is
    */
   function mint(address to, uint256 value) external updateInflationFactor returns (bool) {
     require(
-      msg.sender == registry.getAddressForOrDie(getExchangeRegistryId()) ||
+//      msg.sender == registry.getAddressForOrDie(getExchangeRegistryId()) ||
         msg.sender == registry.getAddressFor(VALIDATORS_REGISTRY_ID) ||
         msg.sender == registry.getAddressFor(GRANDA_MENTO_REGISTRY_ID),
       "Sender not authorized to mint"

@@ -154,8 +154,7 @@ CalledByVm
     event ValidatorCommissionUpdated(address indexed validator, uint256 commission);
     event ValidatorEpochPaymentDistributed(
         address indexed validator,
-        uint256 validatorPayment,
-        uint256 remainPayment
+        uint256 validatorPayment
     );
 
     modifier onlySlasher() {
@@ -450,11 +449,14 @@ CalledByVm
             uint256 validatorCommission = totalPayment.multiply(validators[account].commission).fromFixed();
             uint256 remainPayment = totalPayment.fromFixed().sub(validatorCommission);
 
+            //----------------- validator ---------------------
             IStableToken stableToken = getStableToken();
             require(stableToken.mint(account, validatorCommission), "mint failed to validator account");
 
-            emit ValidatorEpochPaymentDistributed(account, validatorCommission, remainPayment);
-            return remainPayment;
+            //----------------- voter ---------------------
+            getElection().distributeEpochVotersRewards(account,remainPayment);
+            emit ValidatorEpochPaymentDistributed(account, validatorCommission);
+            return totalPayment.fromFixed();
         } else {
             return 0;
         }

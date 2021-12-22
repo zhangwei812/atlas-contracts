@@ -628,7 +628,7 @@ CalledByVm
 
     function distributeEpochVotersRewards(address validator, uint256 value)
     external
-    onlyVm
+    onlyRegisteredContract(VALIDATORS_REGISTRY_ID)
     {
         _distributeEpochVotersRewards(validator, value);
     }
