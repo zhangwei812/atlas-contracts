@@ -62,11 +62,6 @@ CalledByVm
     struct ValidatorActiveVotes {
         // The total number of active votes that have been cast for this validator.
         uint256 total;
-        // The total number of active votes by a voter is equal to the number of active vote units for
-        // that voter times the total number of active votes divided by the total number of active
-        // vote units.
-        //投票人的有效投票总数 = 该投票人的有效投票单位数 * (有效投票总数 / 有效投票单位总数)
-        //        uint256 totalUnits; //将投票数按照（有效投票）单位换算
         mapping(address => uint256) valueByAccount; // voter => units
         address[] voters;
     }
@@ -274,7 +269,7 @@ CalledByVm
 
     /**
      * @notice Converts `account`'s pending votes for `validator` to active votes.
-     * @param validator The validator validator to vote for.
+     * @param validator The voter to vote for.
      * @return True upon success.
      * @dev Pending votes cannot be activated until an election has been held.
      */
@@ -285,8 +280,8 @@ CalledByVm
 
     /**
      * @notice Converts `account`'s pending votes for `validator` to active votes.
-     * @param validator The validator validator to vote for.
-     * @param account The validateor validator account's pending votes to active votes
+     * @param validator The voter to vote for.
+     * @param account The voter account's pending votes to active votes
      * @return True upon success.
      * @dev Pending votes cannot be activated until an election has been held.
      */
@@ -308,7 +303,7 @@ CalledByVm
     /**
      * @notice Returns whether or not an account's votes for the specified validator can be activated.
      * @param account The account with pending votes.
-     * @param validator The validator validator that `account` has pending votes for.
+     * @param validator The  validator that `account` has pending votes for.
      * @return Whether or not `account` has activatable votes for `validator`.
      * @dev Pending votes cannot be activated until an election has been held.
      */
@@ -376,7 +371,7 @@ CalledByVm
 
     /**
      * @notice Revokes `value` active votes for `validator`
-     * @param validator The validator validator to revoke votes from.
+     * @param validator The validator  to revoke votes from.
      * @param value The number of votes to revoke.
      * @param lesser The validator receiving fewer votes than the validator for which the vote was revoked,
      *   or 0 if that validator has the fewest votes of any validator validator.
@@ -411,13 +406,13 @@ CalledByVm
             value <= getActiveVotesForValidatorByAccount(validator, account),
             "Vote value larger than active votes"
         );
-        uint256 units = decrementActiveVotes(validator, account, value);
+        uint256 amount = decrementActiveVotes(validator, account, value);
         decrementTotalVotes(validator, value, lesser, greater);
         getLockedGold().incrementNonvotingAccountBalance(account, value);
         if (getTotalVotesForValidatorByAccount(validator, account) == 0) {
             deleteElement(votes.validatorsVotedFor[account], validator, index);
         }
-        emit ValidatorActiveVoteRevoked(account, validator, value, units);
+        emit ValidatorActiveVoteRevoked(account, validator, value, amount);
         return true;
     }
 
@@ -508,7 +503,6 @@ CalledByVm
     view
     returns (uint256)
     {
-        //        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
         return votes.active.forValidator[validator].valueByAccount[account];
     }
 
@@ -517,7 +511,6 @@ CalledByVm
     view
     returns (uint256)
     {
-        //        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
         return votes.active.forValidator[validator].valueByAccount[account];
     }
 
@@ -556,9 +549,6 @@ CalledByVm
      * @param validator The address of the validator validator.
      * @return The total active vote units made for `validator`.
      */
-    //    function getActiveVoteUnitsForValidator(address validator) public view returns (uint256) {
-    //        return votes.active.forValidator[validator].totalUnits;
-    //    }
     function getActiveVotesForValidator(address validator) public view returns (uint256) {
         return votes.active.forValidator[validator].total;
     }
@@ -604,28 +594,6 @@ CalledByVm
     }
 
 
-
-    //    function distributeEpochRewards(address validator, uint256 value, address lesser, address greater)
-    //    external
-    //    onlyVm
-    //    {
-    //        _distributeEpochRewards(validator, value, lesser, greater);
-    //    }
-
-
-    //    function _distributeEpochRewards(address validator, uint256 value, address lesser, address greater)
-    //    internal
-    //    {
-    //        if (votes.total.eligible.contains(validator)) {
-    //            uint256 newVoteTotal = votes.total.eligible.getValue(validator).add(value);
-    //            votes.total.eligible.update(validator, newVoteTotal, lesser, greater);
-    //        }
-    //
-    //        votes.active.forValidator[validator].total = votes.active.forValidator[validator].total.add(value);
-    //        votes.active.total = votes.active.total.add(value);
-    //        emit EpochRewardsDistributedToVoters(validator, value);
-    //    }
-
     function distributeEpochVotersRewards(address validator, uint256 value)
     external
     onlyRegisteredContract(VALIDATORS_REGISTRY_ID)
@@ -645,25 +613,25 @@ CalledByVm
             }
             address voterAddress = voters[i];
             uint256 voteAmount = votes.active.forValidator[validator].valueByAccount[voterAddress];
+            //voter`s voteAmount == 0 delete it from forValidator
             if (voteAmount == 0) {
                 deleteElement(votes.active.forValidator[validator].voters, voterAddress, i);
                 voterAddress = voters[i];
             }
-            FixidityLib.Fraction memory multiplier = FixidityLib  //比率 事实供给/目标供给
+            //multiplier = voteAmount/totalForValidator
+            FixidityLib.Fraction memory multiplier = FixidityLib
             .newFixed(voteAmount)
             .divide(FixidityLib.newFixed(totalForValidator));
 
-            FixidityLib.Fraction memory voterPayment0 = FixidityLib  //比率 事实供给/目标供给
+            FixidityLib.Fraction memory voterPayment = FixidityLib
             .newFixed(value)
             .multiply(multiplier);
 
-            uint256 voterPayment = voterPayment0.value;
-            IStableToken stableToken = getStableToken();
-            require(stableToken.mint(voterAddress, voterPayment), "mint failed to voter Payment");
-            total = total + voterPayment;
-            emit EpochRewardsDistributedToVoters(voterAddress, voterPayment);
+            require(getGoldToken().mint(voterAddress, voterPayment.fromFixed()), "mint failed to voter Payment");
+            total = total + voterPayment.fromFixed();
+            emit EpochRewardsDistributedToVoters(voterAddress, voterPayment.fromFixed());
         }
-
+        // If there are any remaining, add them to the validator
         if (value > total) {
             emit EpochRewardRemainsDistributedToValidators(validator, value - total);
         }
@@ -782,13 +750,9 @@ CalledByVm
     {
         ActiveVotes storage active = votes.active;
         active.total = active.total.add(value);
-
-        //        uint256 units = votesToUnits(validator, value);
-
         ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
         validatorActive.total = validatorActive.total.add(value);
 
-        //        validatorActive.totalUnits = validatorActive.totalUnits.add(units);
         validatorActive.valueByAccount[account] = validatorActive.valueByAccount[account].add(value);
         validatorActive.voters.push(account);
         return value;
@@ -810,19 +774,10 @@ CalledByVm
         // Rounding may cause votesToUnits to return 0 for value != 0, preventing users
         // from revoking the last of their votes. The case where value == votes is special cased
         // to prevent this.
-        uint256 amount = value;
-        //        uint256 activeVotes = getActiveVotesForValidatorByAccount(validator, account);
         ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
-        //        if (activeVotes == value) {
-        //            amount = validatorActive.unitsByAccount[account];
-        //        } else {
-        //            amount = votesToUnits(validator, value);
-        //        }
-
         validatorActive.total = validatorActive.total.sub(value);
-        //        validatorActive.totalUnits = validatorActive.totalUnits.sub(units);
-        validatorActive.valueByAccount[account] = validatorActive.valueByAccount[account].sub(amount);
-        return amount;
+        validatorActive.valueByAccount[account] = validatorActive.valueByAccount[account].sub(value);
+        return value;
     }
 
 
@@ -853,9 +808,8 @@ CalledByVm
      * @param validator The address of the validator.
      * @param value The number of votes.
      * @return Whether or not a validator can receive the specified number of votes.
-     * @dev Votes are not allowed to be cast that would increase a validator's proportion of locked gold
-     *   voting for it to greater than
-     *   (numValidatorMembers + 1) / min(maxElectableValidators, numRegisteredValidators)
+     * @dev Votes are not allowed to be cast that  validator's proportion of locked gold
+     *  voting for it to greater than TotalLockedGold
      * @dev Note that validators may still receive additional votes via rewards even if this function
      *   returns false.
      */
@@ -928,8 +882,7 @@ CalledByVm
     }
 
     /**
-     * @notice Returns a list of elected validators with seats allocated to validators via the D'Hondt
-     *   method.
+     * @notice Returns a list of elected validators with seats allocated to validators
      * @return The list of elected validators.
      */
     function electNValidatorSigners(uint256 minElectableValidators, uint256 maxElectableValidators)

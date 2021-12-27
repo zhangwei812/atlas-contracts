@@ -32,21 +32,14 @@ contract UsingRegistry is Ownable {
     abi.encodePacked("DoubleSigningSlasher")
   );
   bytes32 constant ELECTION_REGISTRY_ID = keccak256(abi.encodePacked("Election"));
-  bytes32 constant EXCHANGE_REGISTRY_ID = keccak256(abi.encodePacked("Exchange"));
-  bytes32 constant FEE_CURRENCY_WHITELIST_REGISTRY_ID = keccak256(
-    abi.encodePacked("FeeCurrencyWhitelist")
-  );
-  bytes32 constant FREEZER_REGISTRY_ID = keccak256(abi.encodePacked("Freezer"));
+
   bytes32 constant GOLD_TOKEN_REGISTRY_ID = keccak256(abi.encodePacked("GoldToken"));
   bytes32 constant GOVERNANCE_REGISTRY_ID = keccak256(abi.encodePacked("Governance"));
   bytes32 constant GOVERNANCE_SLASHER_REGISTRY_ID = keccak256(
     abi.encodePacked("GovernanceSlasher")
   );
   bytes32 constant LOCKED_GOLD_REGISTRY_ID = keccak256(abi.encodePacked("LockedGold"));
-  bytes32 constant RESERVE_REGISTRY_ID = keccak256(abi.encodePacked("Reserve"));
   bytes32 constant RANDOM_REGISTRY_ID = keccak256(abi.encodePacked("Random"));
-  bytes32 constant SORTED_ORACLES_REGISTRY_ID = keccak256(abi.encodePacked("SortedOracles"));
-  bytes32 constant STABLE_TOKEN_REGISTRY_ID = keccak256(abi.encodePacked("StableToken"));
   bytes32 constant VALIDATORS_REGISTRY_ID = keccak256(abi.encodePacked("Validators"));
   // solhint-enable state-visibility
 

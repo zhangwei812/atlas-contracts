@@ -159,7 +159,12 @@ contract GoldToken is
    * @param to The account for which to mint tokens.
    * @param value The amount of CELO to mint.
    */
-  function mint(address to, uint256 value) external onlyVm returns (bool) {
+  function mint(address to, uint256 value) external  returns (bool) {
+    require(
+      msg.sender == registry.getAddressFor(VALIDATORS_REGISTRY_ID) ||
+      msg.sender == registry.getAddressFor(ELECTION_REGISTRY_ID),
+      "Sender not authorized to mint"
+    );
     if (value == 0) {
       return true;
     }

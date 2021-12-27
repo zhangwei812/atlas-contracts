@@ -17,7 +17,7 @@ import "../common/interfaces/ICeloVersionedContract.sol";
 import "../common/libraries/ReentrancyGuard.sol";
 
 /**
- * @title A contract for registering and electing Validator Validators and Validators.
+ * @title A contract for registering and electing  Validators.
  */
 contract Validators is
 IValidators,
@@ -36,58 +36,18 @@ CalledByVm
 
     // For Validators, these requirements must be met in order to:
     //   1. Register a validator
-    //   2. Affiliate with and be added to a validator
-    //   3. Receive epoch payments (note that the validator must meet the validator requirements as well)
-    // Accounts may de-register their Validator `duration` seconds after they were last a member of a
-    // validator, after which no restrictions on Locked Gold will apply to the account.
-    //
-    // For Validator Validators, these requirements must be met in order to:
-    //   1. Register a validator
-    //   2. Add a member to a validator
-    //   3. Receive epoch payments
-    // Note that for validators, the requirement value is multiplied by the number of members, and is
-    // enforced for `duration` seconds after the validator last had that number of members.
-    // Accounts may de-register their Validator `duration` seconds after they were last non-empty, after
-    // which no restrictions on Locked Gold will apply to the account.
+    //   2. Receive epoch payments (the validator must meet the validator requirements )
+    // Accounts may de-register  after their Validator `duration` seconds
+    // after which no restrictions on Locked Gold will apply to the account.
     struct LockedGoldRequirements {
         uint256 value;
         // In seconds.
         uint256 duration;
     }
 
-    //  struct ValidatorValidator {
-    //    bool exists;
-    //    LinkedList.List members;
-    //    FixidityLib.Fraction commission;
-    //    FixidityLib.Fraction nextCommission;
-    //    uint256 nextCommissionBlock;
-    //    // sizeHistory[i] contains the last time the validator contained i members.
-    //    uint256[] sizeHistory;
-    //    SlashingInfo slashInfo;
-    //  }
-
-    // Stores the epoch number at which a validator joined a particular validator.
-    struct MembershipHistoryEntry {
-        uint256 epochNumber;
-        address validator;
-    }
-
-    // Stores the per-epoch membership history of a validator, used to determine which validator
-    // commission should be paid to at the end of an epoch.
-    // Stores a timestamp of the last time the validator was removed from a validator, used to determine
-    // whether or not a validator can de-register.
-    struct MembershipHistory {
-        // The key to the most recent entry in the entries mapping.
-        uint256 tail;
-        // The number of entries in this validators membership history.
-        uint256 numEntries;
-        mapping(uint256 => MembershipHistoryEntry) entries;
-        uint256 lastRemovedFromValidatorTimestamp;
-    }
-
     struct SlashingInfo {
         FixidityLib.Fraction multiplier;
-        uint256 lastSlashed;//处罚时间
+        uint256 lastSlashed;
     }
 
     struct PublicKeys {
@@ -98,7 +58,6 @@ CalledByVm
     struct Validator {
         PublicKeys publicKeys;
         FixidityLib.Fraction score;
-        //        MembershipHistory membershipHistory;
 
         //----- New changes -----
         FixidityLib.Fraction commission;
@@ -114,38 +73,25 @@ CalledByVm
         FixidityLib.Fraction adjustmentSpeed;
     }
 
-    //    mapping(address => ValidatorValidator) private validators;
     mapping(address => Validator) private validators;
-    //    address[] private registeredValidators;
     address[] private registeredValidators;
     LockedGoldRequirements public validatorLockedGoldRequirements;
-    //    LockedGoldRequirements public validatorLockedGoldRequirements;
     ValidatorScoreParameters private validatorScoreParameters;
-    //    uint256 public membershipHistoryLength;
-    //    uint256 public maxValidatorSize;
-    // The number of blocks to delay a ValidatorValidator's commission update
+    // The number of blocks to delay a Validator's commission update
     uint256 public commissionUpdateDelay;
     uint256 public slashingMultiplierResetPeriod;
     uint256 public downtimeGracePeriod;
 
-    //    event MaxValidatorSizeSet(uint256 size);
     event CommissionUpdateDelaySet(uint256 delay);
     event ValidatorScoreParametersSet(uint256 exponent, uint256 adjustmentSpeed);
-    //    event ValidatorLockedGoldRequirementsSet(uint256 value, uint256 duration);
     event ValidatorLockedGoldRequirementsSet(uint256 value, uint256 duration);
-    //    event MembershipHistoryLengthSet(uint256 length);
     event ValidatorRegistered(address indexed validator, uint256  indexed commission);
     event ValidatorDeregistered(address indexed validator);
-    //    event ValidatorAffiliated(address indexed validator, address indexed validator);
-    //    event ValidatorDeaffiliated(address indexed validator, address indexed validator);
     event ValidatorEcdsaPublicKeyUpdated(address indexed validator, bytes ecdsaPublicKey);
     event ValidatorBlsPublicKeyUpdated(address indexed validator, bytes blsPublicKey);
     event ValidatorScoreUpdated(address indexed validator, uint256 score, uint256 epochScore);
 
-    //    event ValidatorValidatorDeregistered(address indexed validator);
-    //    event ValidatorValidatorMemberAdded(address indexed validator, address indexed validator);
-    //    event ValidatorValidatorMemberRemoved(address indexed validator, address indexed validator);
-    //    event ValidatorValidatorMemberReordered(address indexed validator, address indexed validator);
+
     event ValidatorCommissionUpdateQueued(
         address indexed validator,
         uint256 commission,
@@ -209,7 +155,7 @@ CalledByVm
     }
 
     /**
-     * @notice Updates the block delay for a ValidatorValidator's commission udpdate
+     * @notice Updates the block delay for a Validator's commission udpdate
      * @param delay Number of blocks to delay the update
      */
     function setCommissionUpdateDelay(uint256 delay) public onlyOwner {
@@ -282,7 +228,7 @@ CalledByVm
     }
 
     /**
-     * @notice Registers a validator unaffiliated with any validator validator.
+     * @notice Registers a validator
      * @param ecdsaPublicKey The ECDSA public key that the validator is using for consensus, should
      *   match the validator signer. 64 bytes.
      * @param blsPublicKey The BLS public key that the validator is using for consensus, should pass
@@ -290,7 +236,7 @@ CalledByVm
      * @param blsPop The BLS public key proof-of-possession, which consists of a signature on the
      *   account address. 48 bytes.
      * @return True upon success.
-     * @dev Fails if the account is already a validator or validator validator.
+     * @dev Fails if the account is already a validator or  validator.
      * @dev Fails if the account does not have sufficient Locked Gold.
      */
     function registerValidator(
@@ -322,7 +268,6 @@ CalledByVm
         validator.slashInfo = SlashingInfo(FixidityLib.fixed1(), 0);
         emit ValidatorRegistered(account, commission);
         validator.registerTimestamp = now;
-        require(meetsAccountLockedGoldRequirements(account), "Validator requirements not met");
         getElection().markValidatorEligible(lesser, greater, account);
         return true;
     }
@@ -358,22 +303,6 @@ CalledByVm
         );
         return FixidityLib.newFixedFraction(numerator, denominator).unwrap();
     }
-
-    /**
-     * @notice Calculates the aggregate score of a validator for an epoch from individual uptimes.
-     * @param uptimes Array of Fixidity representations of the validators' uptimes, between 0 and 1.
-     * @dev validator_score = average(uptimes ** exponent)
-     * @return Fixidity representation of the validator epoch score between 0 and 1.
-     */
-    //    function calculateValidatorEpochScore(uint256[] calldata uptimes) external view returns (uint256) {
-    //        require(uptimes.length > 0, "Uptime array empty");
-    //        require(uptimes.length <= maxValidatorSize, "Uptime array larger than maximum validator size");
-    //        FixidityLib.Fraction memory sum;
-    //        for (uint256 i = 0; i < uptimes.length; i = i.add(1)) {
-    //            sum = sum.add(FixidityLib.wrap(calculateEpochScore(uptimes[i])));
-    //        }
-    //        return sum.divide(FixidityLib.newFixed(uptimes.length)).unwrap();
-    //    }
 
     /**
      * @notice Updates a validator's score based on its uptime for the epoch.
@@ -416,7 +345,7 @@ CalledByVm
      * @param signer The validator signer of the account to distribute the epoch payment to.
      * @param maxPayment The maximum payment to the validator. Actual payment is based on score and
      *   validator commission.
-     * @return The total payment paid to the validator and their validator.
+     * @return The total payment paid to the validator and voters.
      */
     function distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment)
     external
@@ -431,9 +360,9 @@ CalledByVm
      * @param signer The validator signer of the validator to distribute the epoch payment to.
      * @param maxPayment The maximum payment to the validator. Actual payment is based on score and
      *   validator commission.
-     * @return The total payment paid to the validator and their validator.
+     * @return The total payment paid to the validator and voters.
      */
-    function _distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment)  //这部分奖励组会收取commission比例 其它给成员
+    function _distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment)
     internal
     returns (uint256)
     {
@@ -450,11 +379,10 @@ CalledByVm
             uint256 remainPayment = totalPayment.fromFixed().sub(validatorCommission);
 
             //----------------- validator ---------------------
-            IStableToken stableToken = getStableToken();
-            require(stableToken.mint(account, validatorCommission), "mint failed to validator account");
-
+            require(getGoldToken().mint(account, validatorCommission), "mint failed to validator account");
             //----------------- voter ---------------------
             getElection().distributeEpochVotersRewards(account,remainPayment);
+
             emit ValidatorEpochPaymentDistributed(account, validatorCommission);
             return totalPayment.fromFixed();
         } else {
@@ -792,15 +720,6 @@ CalledByVm
 
 
     /**
-     * @notice Returns whether a particular account has a registered validator validator.
-     * @param account The account.
-     * @return Whether a particular address is a registered validator validator.
-     */
-    //    function isValidatorValidator(address account) public view returns (bool) {
-    //        return validators[account].exists;
-    //    }
-
-    /**
      * @notice Returns whether a particular account has a registered validator.
      * @param account The account.
      * @return Whether a particular address is a registered validator.
@@ -822,8 +741,6 @@ CalledByVm
         delete list[lastIndex];
         list.length = lastIndex;
     }
-
-
 
 
     /**

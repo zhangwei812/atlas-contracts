@@ -49,6 +49,6 @@ interface IElection {
   function setMaxNumValidatorsVotedFor(uint256) external returns (bool);
   function setElectabilityThreshold(uint256) external returns (bool);
 
-  // only VM
+  // only only VALIDATORS Contract
   function distributeEpochVotersRewards(address, uint256) external;
 }

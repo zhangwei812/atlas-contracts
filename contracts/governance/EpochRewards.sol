@@ -20,61 +20,19 @@ Ownable,
 Initializable,
 UsingPrecompiles,
 UsingRegistry,
-Freezable,
 CalledByVm
 {
     using FixidityLib for FixidityLib.Fraction;
     using SafeMath for uint256;
 
-    uint256 constant GENESIS_GOLD_SUPPLY = 600000000 ether; // 600 million Gold
-    //    uint256 constant GOLD_SUPPLY_CAP = 1000000000 ether; // 1 billion Gold
-    uint256 constant SECONDS_LINEAR = 365 * 1 days;
-    uint256 constant YEAR_GOLD_SUPPLY = 200000000 ether;// Annual fixed reward 200 million Gold
-    // This struct governs how the rewards multiplier should deviate from 1.0 based on the ratio of
-    // supply remaining to target supply remaining.
-    //此结构控制奖励乘数如何根据以下比率偏离1.0
-    //剩余供应至目标剩余供应。
-    struct RewardsMultiplierAdjustmentFactors {
-        FixidityLib.Fraction underspend; //低于目标供给
-        FixidityLib.Fraction overspend; //超出目标供给
-    }
-
-    // This struct governs the multiplier on the target rewards to give out in a given epoch due to
-    // potential deviations in the actual Gold total supply from the target total supply.
-    // In the case where the actual exceeds the target (i.e. the protocol has "overspent" with
-    // respect to epoch rewards and payments) the rewards multiplier will be less than one.
-    // In the case where the actual is less than the target (i.e. the protocol has "underspent" with
-    // respect to epoch rewards and payments) the rewards multiplier will be greater than one.
-    struct RewardsMultiplierParameters {
-        RewardsMultiplierAdjustmentFactors adjustmentFactors;
-        // The maximum rewards multiplier.
-        FixidityLib.Fraction max;
-    }
-
-    // This struct governs the target yield awarded to voters in validator elections.此结构控制在验证器选举中授予投票者的目标收益率。
-    struct TargetVotingYieldParameters {
-        // The target yield awarded to users voting in validator elections.            授予在验证器选举中投票的用户的目标收益率。
-        FixidityLib.Fraction target;
-        // Governs the adjustment of the target yield based on the deviation of the percentage of
-        // Gold voting in validator elections from the `targetVotingGoldFraction`.
-        //根据验证器选举中的黄金投票百分比与“targetVotingGoldFraction”的偏差，管理目标收益率的调整。-> 用于调整收益率
-        FixidityLib.Fraction adjustmentFactor;
-        // The maximum target yield awarded to users voting in validator elections.     授予在验证程序选举中投票的用户的最大目标收益率。
-        FixidityLib.Fraction max;
-    }
-
     uint256 public startTime = 0;
-    RewardsMultiplierParameters private rewardsMultiplierParams;
     TargetVotingYieldParameters private targetVotingYieldParams;
-    FixidityLib.Fraction private targetVotingGoldFraction;
     FixidityLib.Fraction private communityRewardFraction;
-    //  FixidityLib.Fraction private carbonOffsettingFraction;
-    address public carbonOffsettingPartner;
+    address public communityPartner;
     uint256 public targetValidatorEpochPayment;
 
     event TargetVotingGoldFractionSet(uint256 fraction);
-    event CommunityRewardFractionSet(uint256 fraction);
-    event CarbonOffsettingFundSet(address indexed partner, uint256 fraction);
+    event CommunityRewardFundSet(address indexed partner, uint256 fraction);
     event TargetValidatorEpochPaymentSet(uint256 payment);
     event TargetVotingYieldParametersSet(uint256 max, uint256 adjustmentFactor);
     event TargetVotingYieldSet(uint256 target);
@@ -121,62 +79,40 @@ CalledByVm
         uint256 targetVotingYieldInitial,
         uint256 targetVotingYieldMax,
         uint256 targetVotingYieldAdjustmentFactor,
-        uint256 rewardsMultiplierMax,
-        uint256 rewardsMultiplierUnderspendAdjustmentFactor,
-        uint256 rewardsMultiplierOverspendAdjustmentFactor,
         uint256 _targetVotingGoldFraction,
         uint256 _targetValidatorEpochPayment,
-        uint256 _communityRewardFraction
+        uint256 _communityRewardFraction,
+        address _communityPartner
     ) external initializer {
         _transferOwnership(msg.sender);
         setRegistry(registryAddress);
         setTargetVotingYieldParameters(targetVotingYieldMax, targetVotingYieldAdjustmentFactor);
-        setRewardsMultiplierParameters(
-            rewardsMultiplierMax,
-            rewardsMultiplierUnderspendAdjustmentFactor,
-            rewardsMultiplierOverspendAdjustmentFactor
-        );
         setTargetVotingGoldFraction(_targetVotingGoldFraction);
         setTargetValidatorEpochPayment(_targetValidatorEpochPayment);
-        setCommunityRewardFraction(_communityRewardFraction);
+        setCommunityRewardFraction(_communityPartner, _communityRewardFraction);
         setTargetVotingYield(targetVotingYieldInitial);
         startTime = now;
     }
 
-    /**
-     * @notice Returns the target voting yield parameters.
-     * @return The target, max, and adjustment factor for target voting yield.
-     */
-    function getTargetVotingYieldParameters() external view returns (uint256, uint256, uint256) {
-        TargetVotingYieldParameters storage params = targetVotingYieldParams;
-        return (params.target.unwrap(), params.max.unwrap(), params.adjustmentFactor.unwrap());
-    }
-
-    /**
-     * @notice Returns the rewards multiplier parameters.
-     * @return The max multiplier and under/over spend adjustment factors.
-     */
-    function getRewardsMultiplierParameters() external view returns (uint256, uint256, uint256) {
-        RewardsMultiplierParameters storage params = rewardsMultiplierParams;
-        return (
-        params.max.unwrap(),
-        params.adjustmentFactors.underspend.unwrap(),
-        params.adjustmentFactors.overspend.unwrap()
-        );
-    }
 
     /**
      * @notice Sets the community reward percentage
      * @param value The percentage of the total reward to be sent to the community funds.
      * @return True upon success.
      */
-    function setCommunityRewardFraction(uint256 value) public onlyOwner returns (bool) {
+    function setCommunityRewardFraction(address partner, uint256 value) public onlyOwner returns (bool) {
         require(
-            value != communityRewardFraction.unwrap() && value < FixidityLib.fixed1().unwrap(),
-            "Value must be different from existing community reward fraction and less than 1"
+            partner != communityPartner || value != communityRewardFraction.unwrap(),
+            "Partner and value must be different from existing carbon community fund"
         );
+        require(
+            value < FixidityLib.fixed1().unwrap(),
+            "reward fraction and less than 1"
+        );
+        require(value < FixidityLib.fixed1().unwrap(), "Value must be less than 1");
+        communityPartner = partner;
         communityRewardFraction = FixidityLib.wrap(value);
-        emit CommunityRewardFractionSet(value);
+        emit CommunityRewardFundSet(partner, value);
         return true;
     }
 
@@ -189,35 +125,9 @@ CalledByVm
     }
 
 
-
-
     /**
-     * @notice Sets the target voting Gold fraction.
-     * @param value The percentage of floating Gold voting to target.
-     * @return True upon success.
-     */
-    function setTargetVotingGoldFraction(uint256 value) public onlyOwner returns (bool) {
-        require(value != targetVotingGoldFraction.unwrap(), "Target voting gold fraction unchanged");
-        require(
-            value < FixidityLib.fixed1().unwrap(),
-            "Target voting gold fraction cannot be larger than 1"
-        );
-        targetVotingGoldFraction = FixidityLib.wrap(value);
-        emit TargetVotingGoldFractionSet(value);
-        return true;
-    }
-
-    /**
-     * @notice Returns the target voting Gold fraction.
-     * @return The percentage of floating Gold voting to target.
-     */
-    function getTargetVotingGoldFraction() external view returns (uint256) {
-        return targetVotingGoldFraction.unwrap();
-    }
-
-    /**
-     * @notice Sets the target per-epoch payment in Celo Dollars for validators.
-     * @param value The value in Celo Dollars.
+     * @notice Sets the target per-epoch payment in Celo  for validators.
+     * @param value The value in Celo .
      * @return True upon success.
      */
     function setTargetValidatorEpochPayment(uint256 value) public onlyOwner returns (bool) {
@@ -228,182 +138,20 @@ CalledByVm
     }
 
     /**
-     * @notice Sets the rewards multiplier parameters.
-     * @param max The max multiplier on target epoch rewards.
-     * @param underspendAdjustmentFactor Adjusts the multiplier on target epoch rewards when the
-     *   protocol is running behind the target Gold supply.
-     * @param overspendAdjustmentFactor Adjusts the multiplier on target epoch rewards when the
-     *   protocol is running ahead of the target Gold supply.
-     * @return True upon success.
-     */
-    function setRewardsMultiplierParameters(
-        uint256 max,
-        uint256 underspendAdjustmentFactor,
-        uint256 overspendAdjustmentFactor
-    ) public onlyOwner returns (bool) {
-        require(
-            max != rewardsMultiplierParams.max.unwrap() ||
-            overspendAdjustmentFactor != rewardsMultiplierParams.adjustmentFactors.overspend.unwrap() ||
-            underspendAdjustmentFactor != rewardsMultiplierParams.adjustmentFactors.underspend.unwrap(),
-            "Bad rewards multiplier parameters"
-        );
-        rewardsMultiplierParams = RewardsMultiplierParameters(
-            RewardsMultiplierAdjustmentFactors(
-                FixidityLib.wrap(underspendAdjustmentFactor),
-                FixidityLib.wrap(overspendAdjustmentFactor)
-            ),
-            FixidityLib.wrap(max)
-        );
-        emit RewardsMultiplierParametersSet(max, underspendAdjustmentFactor, overspendAdjustmentFactor);
-        return true;
-    }
-
-    /**
-     * @notice Sets the target voting yield parameters.
-     * @param max The max relative target block reward for voters.
-     * @param adjustmentFactor The target block reward adjustment factor for voters.
-     * @return True upon success.
-     */
-    function setTargetVotingYieldParameters(uint256 max, uint256 adjustmentFactor)
-    public
-    onlyOwner
-    returns (bool)
-    {
-        require(
-            max != targetVotingYieldParams.max.unwrap() ||
-            adjustmentFactor != targetVotingYieldParams.adjustmentFactor.unwrap(),
-            "Bad target voting yield parameters"
-        );
-        targetVotingYieldParams.max = FixidityLib.wrap(max);
-        targetVotingYieldParams.adjustmentFactor = FixidityLib.wrap(adjustmentFactor);
-        require(
-            targetVotingYieldParams.max.lt(FixidityLib.fixed1()),
-            "Max target voting yield must be lower than 100%"
-        );
-        emit TargetVotingYieldParametersSet(max, adjustmentFactor);
-        return true;
-    }
-
-    /**
-     * @notice Sets the target voting yield.  Uses fixed point arithmetic
-     * for protection against overflow.
-     * @param targetVotingYield The relative target block reward for voters.
-     * @return True upon success.
-     */
-    function setTargetVotingYield(uint256 targetVotingYield) public onlyOwner returns (bool) {
-        FixidityLib.Fraction memory target = FixidityLib.wrap(targetVotingYield);
-        require(
-            target.lte(targetVotingYieldParams.max),
-            "Target voting yield must be less than or equal to max"
-        );
-        targetVotingYieldParams.target = target;
-        emit TargetVotingYieldSet(targetVotingYield);
-        return true;
-    }
-
-    /**
-     * @notice Returns the target Gold supply according to the epoch rewards target schedule.
-     * @return The target Gold supply according to the epoch rewards target schedule.
-     */
-    function getTargetGoldTotalSupply() public view returns (uint256) {
-        uint256 timeSinceInitialization = now.sub(startTime)+1;
-
-        timeSinceInitialization = timeSinceInitialization.mod(SECONDS_LINEAR);
-        // Pay out half of all block rewards linearly.支付所有块奖励的一半。
-        uint256 linearRewards = YEAR_GOLD_SUPPLY;
-
-        uint256 targetRewards = linearRewards.mul(timeSinceInitialization).div(SECONDS_LINEAR);
-        // 公式
-        return targetRewards.add(GENESIS_GOLD_SUPPLY);
-    }
-
-    /**
-     * @notice Returns the rewards multiplier based on the current and target Gold supplies.
-     * @param targetGoldSupplyIncrease The target increase in current Gold supply.
-     * @return The rewards multiplier based on the current and target Gold supplies.
-     */
-    function _getRewardsMultiplier(uint256 targetGoldSupplyIncrease)
-    internal
-    view
-    returns (FixidityLib.Fraction memory)
-    {
-        uint256 targetSupply = getTargetGoldTotalSupply(); // 目标供给
-        uint256 totalSupply = getGoldToken().totalSupply(); // 事实供给
-
-        uint256 timeSinceInitialization = now.sub(startTime)+1;
-        uint256 numYear = (timeSinceInitialization.add(365 * 1 days).sub(1)).div(365 * 1 days);
-        uint256 goldSupplyCap = GENESIS_GOLD_SUPPLY.add(numYear * YEAR_GOLD_SUPPLY);
-
-        uint256 remainingSupply = goldSupplyCap.sub(totalSupply.add(targetGoldSupplyIncrease));
-        // 增加量-> 剩余量
-        uint256 targetRemainingSupply = goldSupplyCap.sub(targetSupply);
-
-        require(goldSupplyCap != targetSupply, "GG2");
-        // 目标剩余供给
-        FixidityLib.Fraction memory remainingToTargetRatio = FixidityLib  //比率 事实供给/目标供给
-        .newFixed(remainingSupply)
-        .divide(FixidityLib.newFixed(targetRemainingSupply));
-
-        if (remainingToTargetRatio.gt(FixidityLib.fixed1())) {//超出目标供给
-            FixidityLib.Fraction memory delta = remainingToTargetRatio //超出部分 乘以乘数
-            .subtract(FixidityLib.fixed1())
-            .multiply(rewardsMultiplierParams.adjustmentFactors.underspend);
-            FixidityLib.Fraction memory multiplier = FixidityLib.fixed1().add(delta);
-            if (multiplier.lt(rewardsMultiplierParams.max)) {//超出预期最大值处理
-                return multiplier;
-            } else {
-                return rewardsMultiplierParams.max;
-            }
-        } else if (remainingToTargetRatio.lt(FixidityLib.fixed1())) {
-            FixidityLib.Fraction memory delta = FixidityLib
-            .fixed1()
-            .subtract(remainingToTargetRatio)
-            .multiply(rewardsMultiplierParams.adjustmentFactors.overspend);
-            if (delta.lt(FixidityLib.fixed1())) {
-                return FixidityLib.fixed1().subtract(delta);
-            } else {
-                return FixidityLib.wrap(0);
-            }
-        } else {
-            return FixidityLib.fixed1();
-        }
-    }
-
-    /**
-     * @notice Returns the total target epoch rewards for voters.
-     * @return the total target epoch rewards for voters.
-     */
-    function getTargetVoterRewards() public view returns (uint256) {
-        return
-        FixidityLib
-        .newFixed(getElection().getActiveVotes())
-        .fromFixed();
-    }
-
-    /**
      * @notice Returns the total target epoch payments to validators, converted to Gold.
-       将目标历元付款总额返回给验证器，并转换为黄金。
      * @return The total target epoch payments to validators, converted to Gold.
      */
     function getTargetTotalEpochPaymentsInGold() public view returns (uint256) {
-        address stableTokenAddress = registry.getAddressForOrDie(STABLE_TOKEN_REGISTRY_ID);
-        (uint256 numerator, uint256 denominator) = getSortedOracles().medianRate(stableTokenAddress);
-        //与美元的汇率关系
         return
-        numberValidatorsInCurrentSet().mul(targetValidatorEpochPayment).mul(denominator).div(
-            numerator
-        );
+        numberValidatorsInCurrentSet().mul(targetValidatorEpochPayment);
     }
 
     /**
      * @notice Returns the target gold supply increase used in calculating the rewards multiplier.
      * @return The target increase in gold w/out the rewards multiplier.
      */
-    function _getTargetGoldSupplyIncrease() internal view returns (uint256) {//增加的金币不包括奖励增加的
-        uint256 targetEpochRewards = getTargetVoterRewards();
-        uint256 targetTotalEpochPaymentsInGold = getTargetTotalEpochPaymentsInGold();
-        //按照汇率对应gold
-        uint256 targetGoldSupplyIncrease = targetEpochRewards.add(targetTotalEpochPaymentsInGold);
+    function _getTargetGoldSupplyIncrease() internal view returns (uint256) {
+        uint256 targetGoldSupplyIncrease = getTargetTotalEpochPaymentsInGold();
         // increase /= (1 - fraction) st the final community reward is fraction * increase
         targetGoldSupplyIncrease = FixidityLib
         .newFixed(targetGoldSupplyIncrease)
@@ -414,102 +162,15 @@ CalledByVm
         return targetGoldSupplyIncrease;
     }
 
-    /**
-     * @notice Returns the rewards multiplier based on the current and target Gold supplies.
-     * @return The rewards multiplier based on the current and target Gold supplies.
-     */
-    function getRewardsMultiplier() external view returns (uint256) {
-        return _getRewardsMultiplier(_getTargetGoldSupplyIncrease()).unwrap();
-    }
 
-    /** 返回验证程序选举中用于投票的浮动黄金的分数。
-     * @notice Returns the fraction of floating Gold being used for voting in validator elections.
-     * @return The fraction of floating Gold being used for voting in validator elections.
-     */
-    function getVotingGoldFraction() public view returns (uint256) {
-        uint256 liquidGold = getGoldToken().totalSupply().sub(getReserve().getReserveGoldBalance());
-        uint256 votingGold = getElection().getTotalVotes();
-        return FixidityLib.newFixed(votingGold).divide(FixidityLib.newFixed(liquidGold)).unwrap();
-    }
+
+
+
+
 
     /**
-     * @notice Updates the target voting yield based on the difference between the target and current
-     *   voting Gold fraction.   根据目标和当前投票黄金分数之间的差异更新目标投票收益率。-> 跟新投票收益率分数
-     */
-    function _updateTargetVotingYield() internal onlyWhenNotFrozen {
-        FixidityLib.Fraction memory votingGoldFraction = FixidityLib.wrap(getVotingGoldFraction());
-        // 用于投票的gold/all gold
-        if (votingGoldFraction.gt(targetVotingGoldFraction)) {//1. 如果votingGoldFraction > targetVotingGoldFraction(原始设定为0.5)
-            FixidityLib.Fraction memory votingGoldFractionDelta = votingGoldFraction.subtract(// 算出差值 -
-                targetVotingGoldFraction
-            );
-            FixidityLib.Fraction memory targetVotingYieldDelta = votingGoldFractionDelta.multiply(//差值 * adjustmentFactor
-                targetVotingYieldParams.adjustmentFactor
-            );
-            //.target 用于 getTargetVoterRewards()
-            if (targetVotingYieldDelta.gte(targetVotingYieldParams.target)) {// >=
-                targetVotingYieldParams.target = FixidityLib.newFixed(0);
-                //超出太多不进行奖励
-            } else {
-                targetVotingYieldParams.target = targetVotingYieldParams.target.subtract(
-                    targetVotingYieldDelta
-                );
-            }
-        } else if (votingGoldFraction.lt(targetVotingGoldFraction)) {
-            FixidityLib.Fraction memory votingGoldFractionDelta = targetVotingGoldFraction.subtract(
-                votingGoldFraction
-            );
-            FixidityLib.Fraction memory targetVotingYieldDelta = votingGoldFractionDelta.multiply(
-                targetVotingYieldParams.adjustmentFactor
-            );
-            targetVotingYieldParams.target = targetVotingYieldParams.target.add(targetVotingYieldDelta);
-            if (targetVotingYieldParams.target.gt(targetVotingYieldParams.max)) {
-                targetVotingYieldParams.target = targetVotingYieldParams.max;
-            }
-        }
-        emit TargetVotingYieldUpdated(targetVotingYieldParams.target.unwrap());
-        //    emit TargetVotingYieldUpdated(0);
-    }
-
-    /**
-     * @notice Updates the target voting yield based on the difference between the target and current
-     *   voting Gold fraction.
-     * @dev Only called directly by the protocol.
-     */
-    function updateTargetVotingYield() external onlyVm onlyWhenNotFrozen {
-        _updateTargetVotingYield();
-    }
-
-    /**
-     * @notice Determines if the reserve is low enough to demand a diversion from
-     *    the community reward. Targets initial critical ratio of 2 with a linear
-     *    decline until 25 years have passed where the critical ratio will be 1.
-  确定储量是否足够低，以要求从
-  社区奖励。目标初始临界比为2，线性
-  下降至25年后，临界比率为1。
-     */
-    function isReserveLow() external view returns (bool) {
-        // critical reserve ratio = 2 - time in second / 25 years
-        FixidityLib.Fraction memory timeSinceInitialization = FixidityLib.newFixed(now.sub(startTime));
-        FixidityLib.Fraction memory m = FixidityLib.newFixed(25 * 365 * 1 days);
-        FixidityLib.Fraction memory b = FixidityLib.newFixed(2);
-        FixidityLib.Fraction memory criticalRatio;
-        // Don't let the critical reserve ratio go under 1 after 25 years.
-        if (timeSinceInitialization.gte(m)) {
-            criticalRatio = FixidityLib.fixed1();
-        } else {
-            criticalRatio = b.subtract(timeSinceInitialization.divide(m));
-        }
-        FixidityLib.Fraction memory ratio = FixidityLib.wrap(getReserve().getReserveRatio());
-        return ratio.lte(criticalRatio);
-    }
-
-    /**
-     * @notice Calculates the per validator epoch payment and the total rewards to voters.
-     * @return
-     The per validator epoch reward, //给每一届的验证者
-     the total community             //给社区（组）
-     * reward, and the total carbon offsetting partner reward.
+     * @notice Calculates the per validator epoch payment to validator and the total rewards to community.
+     * @return The per validator epoch reward to validator, and the total community  reward.
      */
     function calculateTargetEpochRewards()
     external
@@ -517,15 +178,11 @@ CalledByVm
     returns (uint256, uint256)
     {
         uint256 targetGoldSupplyIncrease = _getTargetGoldSupplyIncrease();
-        // 目标增加金币
-        FixidityLib.Fraction memory rewardsMultiplier = _getRewardsMultiplier(targetGoldSupplyIncrease);
-        //奖励乘数
         return (
-        FixidityLib.newFixed(targetValidatorEpochPayment).multiply(rewardsMultiplier).fromFixed(),
+        FixidityLib.newFixed(targetValidatorEpochPayment).fromFixed(),
         FixidityLib
         .newFixed(targetGoldSupplyIncrease)
         .multiply(communityRewardFraction)
-        .multiply(rewardsMultiplier)
         .fromFixed()
         );
     }

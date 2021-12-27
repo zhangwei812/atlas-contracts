@@ -355,7 +355,7 @@ contract LockedGold is
    * @param lessers The validators receiving fewer votes than i'th validator, or 0 if the i'th validator has
    *                the fewest votes of any validator validator.
    * @param greaters The validators receiving more votes than the i'th validator, or 0 if the i'th validator
-   *                 has the most votes of any validator validator.
+   *                 has the most votes of any  validator.
    * @param indices The indices of the i'th validator in `account`'s voting list.
    * @dev Fails if `reward` is greater than `account`'s total locked gold.
    */
