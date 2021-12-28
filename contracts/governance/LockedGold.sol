@@ -10,12 +10,12 @@ import "./interfaces/ILockedGold.sol";
 import "../common/Initializable.sol";
 import "../common/Signatures.sol";
 import "../common/UsingRegistry.sol";
-import "../common/interfaces/ICeloVersionedContract.sol";
+import "../common/interfaces/IAtlasVersionedContract.sol";
 import "../common/libraries/ReentrancyGuard.sol";
 
 contract LockedGold is
   ILockedGold,
-  ICeloVersionedContract,
+IAtlasVersionedContract,
   ReentrancyGuard,
   Initializable,
   UsingRegistry
@@ -175,7 +175,7 @@ contract LockedGold is
     Balances storage account = balances[msg.sender];
     // Prevent unlocking gold when voting on governance proposals so that the gold cannot be
     // used to vote more than once.
-    require(!getGovernance().isVoting(msg.sender), "Account locked");
+    //require(!getGovernance().isVoting(msg.sender), "Account locked");
     uint256 balanceRequirement = getValidators().getAccountLockedGoldRequirement(msg.sender);
     require(
       balanceRequirement == 0 ||
@@ -352,11 +352,11 @@ contract LockedGold is
    * @param penalty Amount to slash account.
    * @param reporter Address of account reporting the slasher.
    * @param reward Reward to give reporter.
-   * @param lessers The groups receiving fewer votes than i'th group, or 0 if the i'th group has
-   *                the fewest votes of any validator group.
-   * @param greaters The groups receiving more votes than the i'th group, or 0 if the i'th group
-   *                 has the most votes of any validator group.
-   * @param indices The indices of the i'th group in `account`'s voting list.
+   * @param lessers The validators receiving fewer votes than i'th validator, or 0 if the i'th validator has
+   *                the fewest votes of any validator.
+   * @param greaters The validators receiving more votes than the i'th validator, or 0 if the i'th validator
+   *                 has the most votes of any  validator.
+   * @param indices The indices of the i'th validator in `account`'s voting list.
    * @dev Fails if `reward` is greater than `account`'s total locked gold.
    */
   function slash(
@@ -387,7 +387,7 @@ contract LockedGold is
       _decrementNonvotingAccountBalance(account, maxSlash.sub(difference));
       _incrementNonvotingAccountBalance(reporter, reward);
     }
-    address communityFund = registry.getAddressForOrDie(GOVERNANCE_REGISTRY_ID);
+    address communityFund = getElectionReward().getCommunityPartner();
     address payable communityFundPayable = address(uint160(communityFund));
     require(maxSlash.sub(reward) <= address(this).balance, "Inconsistent balance");
     communityFundPayable.sendValue(maxSlash.sub(reward));

@@ -2,5 +2,8 @@
   "dependencies": {
     "openzeppelin-solidity": "^2.5.1",
     "solidity-bytes-utils": "0.0.7"
+  },
+  "devDependencies": {
+    "openzeppelin-solidity": "^4.3.2"
   }
 }
