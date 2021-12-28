@@ -10,12 +10,12 @@ import "./interfaces/ILockedGold.sol";
 import "../common/Initializable.sol";
 import "../common/Signatures.sol";
 import "../common/UsingRegistry.sol";
-import "../common/interfaces/IAtlasVersionedContract.sol";
+import "../common/interfaces/IMapVersionedContract.sol";
 import "../common/libraries/ReentrancyGuard.sol";
 
 contract LockedGold is
   ILockedGold,
-IAtlasVersionedContract,
+IMapVersionedContract,
   ReentrancyGuard,
   Initializable,
   UsingRegistry
@@ -81,7 +81,7 @@ IAtlasVersionedContract,
   * @return The storage, major, minor, and patch version of the contract.
   */
   function getVersionNumber() external pure returns (uint256, uint256, uint256, uint256) {
-    return (1, 1, 1, 2);
+    return (1, 1, 1, 1);
   }
 
   /**

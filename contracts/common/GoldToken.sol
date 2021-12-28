@@ -7,24 +7,24 @@ import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "./UsingRegistry.sol";
 import "./CalledByVm.sol";
 import "./Initializable.sol";
-import "./interfaces/IAtlasToken.sol";
-import "../common/interfaces/IAtlasVersionedContract.sol";
+import "./interfaces/IMapToken.sol";
+import "../common/interfaces/IMapVersionedContract.sol";
 
 contract GoldToken is
 Initializable,
 CalledByVm,
 UsingRegistry,
 IERC20,
-IAtlasToken,
-IAtlasVersionedContract
+IMapToken,
+IMapVersionedContract
 {
     using SafeMath for uint256;
 
     // Address of the TRANSFER precompiled contract.
     // solhint-disable state-visibility
     address constant TRANSFER = address(0xff - 2);
-    string constant NAME = "Atlas native asset";
-    string constant SYMBOL = "ATLAS";
+    string constant NAME = "MAP native asset";
+    string constant SYMBOL = "MAP";
     uint8 constant DECIMALS = 18;
     uint256 internal totalSupply_;
     // solhint-enable state-visibility
@@ -62,9 +62,9 @@ IAtlasVersionedContract
     }
 
     /**
-     * @notice Transfers ATLAS from one address to another.
-     * @param to The address to transfer ATLAS to.
-     * @param value The amount of ATLAS to transfer.
+     * @notice Transfers MAP from one address to another.
+     * @param to The address to transfer MAP to.
+     * @param value The amount of MAP to transfer.
      * @return True if the transaction succeeds.
      */
     // solhint-disable-next-line no-simple-event-func-name
@@ -73,9 +73,9 @@ IAtlasVersionedContract
     }
 
     /**
-     * @notice Transfers ATLAS from one address to another with a comment.
-     * @param to The address to transfer ATLAS to.
-     * @param value The amount of ATLAS to transfer.
+     * @notice Transfers MAP from one address to another with a comment.
+     * @param to The address to transfer MAP to.
+     * @param value The amount of MAP to transfer.
      * @param comment The transfer comment
      * @return True if the transaction succeeds.
      */
@@ -89,9 +89,9 @@ IAtlasVersionedContract
     }
 
     /**
-     * @notice Approve a user to transfer ATLAS on behalf of another user.
-     * @param spender The address which is being approved to spend ATLAS.
-     * @param value The amount of ATLAS approved to the spender.
+     * @notice Approve a user to transfer MAP on behalf of another user.
+     * @param spender The address which is being approved to spend MAP.
+     * @param value The amount of MAP approved to the spender.
      * @return True if the transaction succeeds.
      */
     function approve(address spender, uint256 value) external returns (bool) {
@@ -103,8 +103,8 @@ IAtlasVersionedContract
 
     /**
      * @notice Increases the allowance of another user.
-     * @param spender The address which is being approved to spend ATLAS.
-     * @param value The increment of the amount of ATLAS approved to the spender.
+     * @param spender The address which is being approved to spend MAP.
+     * @param value The increment of the amount of MAP approved to the spender.
      * @return True if the transaction succeeds.
      */
     function increaseAllowance(address spender, uint256 value) external returns (bool) {
@@ -118,8 +118,8 @@ IAtlasVersionedContract
 
     /**
      * @notice Decreases the allowance of another user.
-     * @param spender The address which is being approved to spend ATLAS.
-     * @param value The decrement of the amount of ATLAS approved to the spender.
+     * @param spender The address which is being approved to spend MAP.
+     * @param value The decrement of the amount of MAP approved to the spender.
      * @return True if the transaction succeeds.
      */
     function decreaseAllowance(address spender, uint256 value) external returns (bool) {
@@ -131,10 +131,10 @@ IAtlasVersionedContract
     }
 
     /**
-     * @notice Transfers ATLAS from one address to another on behalf of a user.
-     * @param from The address to transfer ATLAS from.
-     * @param to The address to transfer ATLAS to.
-     * @param value The amount of ATLAS to transfer.
+     * @notice Transfers MAP from one address to another on behalf of a user.
+     * @param from The address to transfer MAP from.
+     * @param to The address to transfer MAP to.
+     * @param value The amount of MAP to transfer.
      * @return True if the transaction succeeds.
      */
     function transferFrom(address from, address to, uint256 value) external returns (bool) {
@@ -147,7 +147,7 @@ IAtlasVersionedContract
 
         bool success;
         (success,) = TRANSFER.call.value(0).gas(gasleft())(abi.encode(from, to, value));
-        require(success, "ATLAS transfer failed");
+        require(success, "MAP transfer failed");
 
         allowed[from][msg.sender] = allowed[from][msg.sender].sub(value);
         emit Transfer(from, to, value);
@@ -155,9 +155,9 @@ IAtlasVersionedContract
     }
 
     /**
-     * @notice Mints new ATLAS and gives it to 'to'.
+     * @notice Mints new MAP and gives it to 'to'.
      * @param to The account for which to mint tokens.
-     * @param value The amount of ATLAS to mint.
+     * @param value The amount of MAP to mint.
      */
     function mint(address to, uint256 value) external returns (bool) {
         require(
@@ -174,52 +174,52 @@ IAtlasVersionedContract
 
         bool success;
         (success,) = TRANSFER.call.value(0).gas(gasleft())(abi.encode(address(0), to, value));
-        require(success, "ATLAS transfer failed");
+        require(success, "MAP transfer failed");
 
         emit Transfer(address(0), to, value);
         return true;
     }
 
     /**
-     * @return The name of the ATLAS token.
+     * @return The name of the MAP token.
      */
     function name() external view returns (string memory) {
         return NAME;
     }
 
     /**
-     * @return The symbol of the ATLAS token.
+     * @return The symbol of the MAP token.
      */
     function symbol() external view returns (string memory) {
         return SYMBOL;
     }
 
     /**
-     * @return The number of decimal places to which ATLAS is divisible.
+     * @return The number of decimal places to which MAP is divisible.
      */
     function decimals() external view returns (uint8) {
         return DECIMALS;
     }
 
     /**
-     * @return The total amount of ATLAS in existence.
+     * @return The total amount of MAP in existence.
      */
     function totalSupply() external view returns (uint256) {
         return totalSupply_;
     }
 
     /**
-     * @notice Gets the amount of owner's ATLAS allowed to be spent by spender.
-     * @param owner The owner of the ATLAS.
-     * @param spender The spender of the ATLAS.
-     * @return The amount of ATLAS owner is allowing spender to spend.
+     * @notice Gets the amount of owner's MAP allowed to be spent by spender.
+     * @param owner The owner of the MAP.
+     * @param spender The spender of the MAP.
+     * @return The amount of MAP owner is allowing spender to spend.
      */
     function allowance(address owner, address spender) external view returns (uint256) {
         return allowed[owner][spender];
     }
 
     /**
-     * @notice Increases the variable for total amount of ATLAS in existence.
+     * @notice Increases the variable for total amount of MAP in existence.
      * @param amount The amount to increase counter by
      */
     function increaseSupply(uint256 amount) external onlyVm {
@@ -236,9 +236,9 @@ IAtlasVersionedContract
     }
 
     /**
-     * @notice internal ATLAS transfer from one address to another.
-     * @param to The address to transfer ATLAS to.
-     * @param value The amount of ATLAS to transfer.
+     * @notice internal MAP transfer from one address to another.
+     * @param to The address to transfer MAP to.
+     * @param value The amount of MAP to transfer.
      * @return True if the transaction succeeds.
      */
     function _transfer(address to, uint256 value) internal returns (bool) {
@@ -247,7 +247,7 @@ IAtlasVersionedContract
 
         bool success;
         (success,) = TRANSFER.call.value(0).gas(gasleft())(abi.encode(msg.sender, to, value));
-        require(success, "ATLAS transfer failed");
+        require(success, "MAP transfer failed");
         emit Transfer(msg.sender, to, value);
         return true;
     }

@@ -1,10 +1,10 @@
 pragma solidity ^0.5.13;
 
 /**
- * @title This interface describes the non- ERC20 shared interface for all Atlas Tokens, and
+ * @title This interface describes the non- ERC20 shared interface for all MAP Tokens, and
  * in the absence of interface inheritance is intended as a companion to IERC20.sol.
  */
-interface IAtlasToken {
+interface IMapToken {
   function transferWithComment(address, uint256, string calldata) external returns (bool);
   function name() external view returns (string memory);
   function symbol() external view returns (string memory);

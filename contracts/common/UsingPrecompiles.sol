@@ -1,7 +1,7 @@
 pragma solidity ^0.5.13;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
-import "../common/interfaces/IAtlasVersionedContract.sol";
+import "../common/interfaces/IMapVersionedContract.sol";
 
 contract UsingPrecompiles {
   using SafeMath for uint256;
@@ -89,7 +89,7 @@ contract UsingPrecompiles {
     pure
     returns (uint256)
   {
-    // Follows GetEpochNumber from ATLAS-blockchain/blob/master/consensus/istanbul/utils.go
+    // Follows GetEpochNumber from atlas/blob/master/consensus/istanbul/utils.go
     uint256 epochNumber = blockNumber / epochSize;
     if (blockNumber % epochSize == 0) {
       return epochNumber;
@@ -254,7 +254,7 @@ contract UsingPrecompiles {
 
   /**
    * @notice Returns the minimum number of required signers for a given block number.
-   * @dev Computed in ATLAS-blockchain as int(math.Ceil(float64(2*valSet.Size()) / 3))
+   * @dev Computed in map atlas as int(math.Ceil(float64(2*valSet.Size()) / 3))
    */
   function minQuorumSize(uint256 blockNumber) public view returns (uint256) {
     return numberValidatorsInSet(blockNumber).mul(2).add(2).div(3);

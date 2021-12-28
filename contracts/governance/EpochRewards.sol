@@ -8,13 +8,13 @@ import "../common/FixidityLib.sol";
 import "../common/Initializable.sol";
 import "../common/UsingRegistry.sol";
 import "../common/UsingPrecompiles.sol";
-import "../common/interfaces/IAtlasVersionedContract.sol";
+import "../common/interfaces/IMapVersionedContract.sol";
 
 /**
  * @title Contract for calculating epoch rewards.
  */
 contract EpochRewards is
-IAtlasVersionedContract,
+IMapVersionedContract,
 IElectionReward,
 Ownable,
 Initializable,
@@ -109,8 +109,8 @@ CalledByVm
 
 
     /**
-     * @notice Sets the target per-epoch payment in Atlas  for validators.
-     * @param value The value in Atlas .
+     * @notice Sets the target per-epoch payment in MAP  for validators.
+     * @param value The value in MAP .
      * @return True upon success.
      */
     function setTargetValidatorEpochPayment(uint256 value) public onlyOwner returns (bool) {

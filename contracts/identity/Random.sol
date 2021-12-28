@@ -7,14 +7,14 @@ import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "../common/CalledByVm.sol";
 import "../common/Initializable.sol";
 import "../common/UsingPrecompiles.sol";
-import "../common/interfaces/IAtlasVersionedContract.sol";
+import "../common/interfaces/IMapVersionedContract.sol";
 
 /**
  * @title Provides randomness for verifier selection
  */
 contract Random is
   IRandom,
-IAtlasVersionedContract,
+  IMapVersionedContract,
   Ownable,
   Initializable,
   UsingPrecompiles,

@@ -12,13 +12,13 @@ import "../common/FixidityLib.sol";
 import "../common/linkedlists/AddressSortedLinkedList.sol";
 import "../common/UsingPrecompiles.sol";
 import "../common/UsingRegistry.sol";
-import "../common/interfaces/IAtlasVersionedContract.sol";
+import "../common/interfaces/IMapVersionedContract.sol";
 import "../common/libraries/Heap.sol";
 import "../common/libraries/ReentrancyGuard.sol";
 
 contract Election is
 IElection,
-IAtlasVersionedContract,
+IMapVersionedContract,
 Ownable,
 ReentrancyGuard,
 Initializable,
@@ -32,7 +32,7 @@ CalledByVm
 
     // 1e20 ensures that units can be represented as precisely as possible to avoid rounding errors
     // when translating to votes, without risking integer overflow.
-    // A maximum of 1,000,000,000 ATLAS (1e27) yields a maximum of 1e47 units, whose product is at
+    // A maximum of 1,000,000,000 MAP (1e27) yields a maximum of 1e47 units, whose product is at
     // most 1e74, which is less than 2^256.
     uint256 private constant UNIT_PRECISION_FACTOR = 100000000000000000000;
 

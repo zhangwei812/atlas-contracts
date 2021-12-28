@@ -13,7 +13,7 @@ import "../common/FixidityLib.sol";
 import "../common/linkedlists/AddressLinkedList.sol";
 import "../common/UsingRegistry.sol";
 import "../common/UsingPrecompiles.sol";
-import "../common/interfaces/IAtlasVersionedContract.sol";
+import "../common/interfaces/IMapVersionedContract.sol";
 import "../common/libraries/ReentrancyGuard.sol";
 
 /**
@@ -21,7 +21,7 @@ import "../common/libraries/ReentrancyGuard.sol";
  */
 contract Validators is
 IValidators,
-IAtlasVersionedContract,
+IMapVersionedContract,
 Ownable,
 ReentrancyGuard,
 Initializable,

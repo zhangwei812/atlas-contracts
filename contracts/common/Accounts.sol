@@ -6,14 +6,14 @@ import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./interfaces/IAccounts.sol";
 
 import "../common/Initializable.sol";
-import "../common/interfaces/IAtlasVersionedContract.sol";
+import "../common/interfaces/IMapVersionedContract.sol";
 import "../common/Signatures.sol";
 import "../common/UsingRegistry.sol";
 import "../common/libraries/ReentrancyGuard.sol";
 
 contract Accounts is
   IAccounts,
-IAtlasVersionedContract,
+IMapVersionedContract,
   Ownable,
   ReentrancyGuard,
   Initializable,
@@ -71,9 +71,9 @@ IAtlasVersionedContract,
   );
   bytes32 public eip712DomainSeparator;
 
-  bytes32 constant ValidatorSigner = keccak256(abi.encodePacked("ATLAS.org/core/validator"));
-  bytes32 constant AttestationSigner = keccak256(abi.encodePacked("ATLAS.org/core/attestation"));
-  bytes32 constant VoteSigner = keccak256(abi.encodePacked("ATLAS.org/core/vote"));
+  bytes32 constant ValidatorSigner = keccak256(abi.encodePacked("maplabs.io/core/validator"));
+  bytes32 constant AttestationSigner = keccak256(abi.encodePacked("maplabs.io/core/attestation"));
+  bytes32 constant VoteSigner = keccak256(abi.encodePacked("maplabs.io/core/vote"));
 
   event AttestationSignerAuthorized(address indexed account, address signer);
   event VoteSignerAuthorized(address indexed account, address signer);
@@ -108,7 +108,7 @@ IAtlasVersionedContract,
    * @return The storage, major, minor, and patch version of the contract.
    */
   function getVersionNumber() external pure returns (uint256, uint256, uint256, uint256) {
-    return (1, 1, 2, 1);
+    return (1, 1, 2, 0);
   }
 
   /**
@@ -122,7 +122,7 @@ IAtlasVersionedContract,
   }
 
   /**
-   * @notice Sets the EIP712 domain separator for the Atlas Accounts abstraction.
+   * @notice Sets the EIP712 domain separator for the MAP Accounts abstraction.
    */
   function setEip712DomainSeparator() public {
     uint256 chainId;
@@ -135,7 +135,7 @@ IAtlasVersionedContract,
         keccak256(
           "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
         ),
-        keccak256(bytes("Atlas Core Contracts")),
+        keccak256(bytes("MAP Core Contracts")),
         keccak256("1.0"),
         chainId,
         address(this)
