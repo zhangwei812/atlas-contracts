@@ -13,7 +13,7 @@ import "../common/FixidityLib.sol";
 import "../common/linkedlists/AddressLinkedList.sol";
 import "../common/UsingRegistry.sol";
 import "../common/UsingPrecompiles.sol";
-import "../common/interfaces/ICeloVersionedContract.sol";
+import "../common/interfaces/IAtlasVersionedContract.sol";
 import "../common/libraries/ReentrancyGuard.sol";
 
 /**
@@ -21,7 +21,7 @@ import "../common/libraries/ReentrancyGuard.sol";
  */
 contract Validators is
 IValidators,
-ICeloVersionedContract,
+IAtlasVersionedContract,
 Ownable,
 ReentrancyGuard,
 Initializable,
@@ -379,7 +379,7 @@ CalledByVm
             uint256 remainPayment = totalPayment.fromFixed().sub(validatorCommission);
 
             //----------------- validator ---------------------
-            require(getGoldToken().transfer(account, validatorCommission), "mint failed to validator account");
+            require(getGoldToken2().mint(account, validatorCommission), "mint failed to validator account");
             //----------------- voter ---------------------
             getElection().distributeEpochVotersRewards(account,remainPayment);
 
@@ -406,7 +406,7 @@ CalledByVm
         address account = getAccounts().validatorSignerToAccount(msg.sender);
         require(isValidator(account), "Not a validator");
 
-        // Require that the validator has not been a member of a validator validator for
+        // Require that the validator has not been a member of a validator for
         // `validatorLockedGoldRequirements.duration` seconds.
         Validator storage validator = validators[account];
         uint256 requirementEndTime = validator.registerTimestamp.add(
@@ -548,14 +548,14 @@ CalledByVm
 
 
     /**
-     * @notice Queues an update to a validator validator's commission.
+     * @notice Queues an update to a validator's commission.
      * If there was a previously scheduled update, that is overwritten.
      * @param commission Fixidity representation of the commission this validator receives on epoch
      *   payments made to its members. Must be in the range [0, 1.0].
      */
     function setNextCommissionUpdate(uint256 commission) external {
         address account = getAccounts().validatorSignerToAccount(msg.sender);
-        require(isValidator(account), "Not a validator validator");
+        require(isValidator(account), "Not a validator");
         Validator storage validator = validators[account];
         require(commission <= FixidityLib.fixed1().unwrap(), "Commission can't be greater than 100%");
         require(commission != validator.commission.unwrap(), "Commission must be different");
@@ -565,7 +565,7 @@ CalledByVm
         emit ValidatorCommissionUpdateQueued(account, commission, validator.nextCommissionBlock);
     }
     /**
-     * @notice Updates a validator validator's commission based on the previously queued update
+     * @notice Updates a validator's commission based on the previously queued update
      */
     function updateCommission() external {
         address account = getAccounts().validatorSignerToAccount(msg.sender);
@@ -765,7 +765,7 @@ CalledByVm
      */
     function resetSlashingMultiplier() external nonReentrant {
         address account = getAccounts().validatorSignerToAccount(msg.sender);
-        require(isValidator(account), "Not a validator validator");
+        require(isValidator(account), "Not a validator");
         Validator storage validator = validators[account];
         require(
             now >= validator.slashInfo.lastSlashed.add(slashingMultiplierResetPeriod),
@@ -779,7 +779,7 @@ CalledByVm
      * @param account The validator being slashed.
      */
     function halveSlashingMultiplier(address account) external nonReentrant onlySlasher {
-        require(isValidator(account), "Not a validator validator");
+        require(isValidator(account), "Not a validator");
         Validator storage validator = validators[account];
         validator.slashInfo.multiplier = FixidityLib.wrap(validator.slashInfo.multiplier.unwrap().div(2));
         validator.slashInfo.lastSlashed = now;
@@ -790,7 +790,7 @@ CalledByVm
      * @param account The validator to fetch slashing multiplier for.
      */
     function getValidatorSlashingMultiplier(address account) external view returns (uint256) {
-        require(isValidator(account), "Not a validator validator");
+        require(isValidator(account), "Not a validator");
         Validator storage validator = validators[account];
         return validator.slashInfo.multiplier.unwrap();
     }

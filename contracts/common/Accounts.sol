@@ -6,14 +6,14 @@ import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./interfaces/IAccounts.sol";
 
 import "../common/Initializable.sol";
-import "../common/interfaces/ICeloVersionedContract.sol";
+import "../common/interfaces/IAtlasVersionedContract.sol";
 import "../common/Signatures.sol";
 import "../common/UsingRegistry.sol";
 import "../common/libraries/ReentrancyGuard.sol";
 
 contract Accounts is
   IAccounts,
-  ICeloVersionedContract,
+IAtlasVersionedContract,
   Ownable,
   ReentrancyGuard,
   Initializable,
@@ -71,9 +71,9 @@ contract Accounts is
   );
   bytes32 public eip712DomainSeparator;
 
-  bytes32 constant ValidatorSigner = keccak256(abi.encodePacked("celo.org/core/validator"));
-  bytes32 constant AttestationSigner = keccak256(abi.encodePacked("celo.org/core/attestation"));
-  bytes32 constant VoteSigner = keccak256(abi.encodePacked("celo.org/core/vote"));
+  bytes32 constant ValidatorSigner = keccak256(abi.encodePacked("ATLAS.org/core/validator"));
+  bytes32 constant AttestationSigner = keccak256(abi.encodePacked("ATLAS.org/core/attestation"));
+  bytes32 constant VoteSigner = keccak256(abi.encodePacked("ATLAS.org/core/vote"));
 
   event AttestationSignerAuthorized(address indexed account, address signer);
   event VoteSignerAuthorized(address indexed account, address signer);
@@ -122,7 +122,7 @@ contract Accounts is
   }
 
   /**
-   * @notice Sets the EIP712 domain separator for the Celo Accounts abstraction.
+   * @notice Sets the EIP712 domain separator for the Atlas Accounts abstraction.
    */
   function setEip712DomainSeparator() public {
     uint256 chainId;
@@ -135,7 +135,7 @@ contract Accounts is
         keccak256(
           "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
         ),
-        keccak256(bytes("Celo Core Contracts")),
+        keccak256(bytes("Atlas Core Contracts")),
         keccak256("1.0"),
         chainId,
         address(this)

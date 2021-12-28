@@ -8,13 +8,13 @@ import "../common/FixidityLib.sol";
 import "../common/Initializable.sol";
 import "../common/UsingRegistry.sol";
 import "../common/UsingPrecompiles.sol";
-import "../common/interfaces/ICeloVersionedContract.sol";
+import "../common/interfaces/IAtlasVersionedContract.sol";
 
 /**
  * @title Contract for calculating epoch rewards.
  */
 contract EpochRewards is
-ICeloVersionedContract,
+IAtlasVersionedContract,
 IElectionReward,
 Ownable,
 Initializable,
@@ -109,8 +109,8 @@ CalledByVm
 
 
     /**
-     * @notice Sets the target per-epoch payment in Celo  for validators.
-     * @param value The value in Celo .
+     * @notice Sets the target per-epoch payment in Atlas  for validators.
+     * @param value The value in Atlas .
      * @return True upon success.
      */
     function setTargetValidatorEpochPayment(uint256 value) public onlyOwner returns (bool) {

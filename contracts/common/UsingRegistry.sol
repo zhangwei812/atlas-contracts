@@ -5,11 +5,13 @@ import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 import "./interfaces/IAccounts.sol";
 import "./interfaces/IRegistry.sol";
+import "./interfaces/IAtlasToken.sol";
 
 import "../governance/interfaces/IElection.sol";
 import "../governance/interfaces/IElectionReward.sol";
 import "../governance/interfaces/ILockedGold.sol";
 import "../governance/interfaces/IValidators.sol";
+
 
 import "../identity/interfaces/IRandom.sol";
 
@@ -68,6 +70,9 @@ contract UsingRegistry is Ownable {
 
   function getGoldToken() internal view returns (IERC20) {
     return IERC20(registry.getAddressForOrDie(GOLD_TOKEN_REGISTRY_ID));
+  }
+  function getGoldToken2() internal view returns (IAtlasToken) {
+    return IAtlasToken(registry.getAddressForOrDie(GOLD_TOKEN_REGISTRY_ID));
   }
 
 

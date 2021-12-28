@@ -28,7 +28,7 @@ interface IElection {
   function getPendingVotesForValidatorByAccount(address, address) external view returns (uint256);
   function getActiveVotesForValidatorByAccount(address, address) external view returns (uint256);
   function getTotalVotesForValidatorByAccount(address, address) external view returns (uint256);
-  function getActiveVoteUnitsForValidatorByAccount(address, address) external view returns (uint256);
+  function getActiveVoteForValidatorByAccount(address, address) external view returns (uint256);
   function getTotalVotesForValidator(address) external view returns (uint256);
   function getActiveVotesForValidator(address) external view returns (uint256);
   function getPendingVotesForValidator(address) external view returns (uint256);

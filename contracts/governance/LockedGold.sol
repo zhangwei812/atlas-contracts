@@ -10,12 +10,12 @@ import "./interfaces/ILockedGold.sol";
 import "../common/Initializable.sol";
 import "../common/Signatures.sol";
 import "../common/UsingRegistry.sol";
-import "../common/interfaces/ICeloVersionedContract.sol";
+import "../common/interfaces/IAtlasVersionedContract.sol";
 import "../common/libraries/ReentrancyGuard.sol";
 
 contract LockedGold is
   ILockedGold,
-  ICeloVersionedContract,
+IAtlasVersionedContract,
   ReentrancyGuard,
   Initializable,
   UsingRegistry
@@ -353,7 +353,7 @@ contract LockedGold is
    * @param reporter Address of account reporting the slasher.
    * @param reward Reward to give reporter.
    * @param lessers The validators receiving fewer votes than i'th validator, or 0 if the i'th validator has
-   *                the fewest votes of any validator validator.
+   *                the fewest votes of any validator.
    * @param greaters The validators receiving more votes than the i'th validator, or 0 if the i'th validator
    *                 has the most votes of any  validator.
    * @param indices The indices of the i'th validator in `account`'s voting list.

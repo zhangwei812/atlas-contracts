@@ -6,7 +6,7 @@ library ExternalCall {
   /**
    * @notice Executes external call.
    * @param destination The address to call.
-   * @param value The CELO value to be sent.
+   * @param value The ATLAS value to be sent.
    * @param data The data to be sent.
    * @return The call return value.
    */

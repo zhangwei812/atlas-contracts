@@ -12,13 +12,13 @@ import "../common/FixidityLib.sol";
 import "../common/linkedlists/AddressSortedLinkedList.sol";
 import "../common/UsingPrecompiles.sol";
 import "../common/UsingRegistry.sol";
-import "../common/interfaces/ICeloVersionedContract.sol";
+import "../common/interfaces/IAtlasVersionedContract.sol";
 import "../common/libraries/Heap.sol";
 import "../common/libraries/ReentrancyGuard.sol";
 
 contract Election is
 IElection,
-ICeloVersionedContract,
+IAtlasVersionedContract,
 Ownable,
 ReentrancyGuard,
 Initializable,
@@ -32,7 +32,7 @@ CalledByVm
 
     // 1e20 ensures that units can be represented as precisely as possible to avoid rounding errors
     // when translating to votes, without risking integer overflow.
-    // A maximum of 1,000,000,000 CELO (1e27) yields a maximum of 1e47 units, whose product is at
+    // A maximum of 1,000,000,000 ATLAS (1e27) yields a maximum of 1e47 units, whose product is at
     // most 1e74, which is less than 2^256.
     uint256 private constant UNIT_PRECISION_FACTOR = 100000000000000000000;
 
@@ -228,14 +228,14 @@ CalledByVm
 
     /**
      * @notice Increments the number of total and pending votes for `validator`.
-     * @param validator The validator validator to vote for.
+     * @param validator The validator to vote for.
      * @param value The amount of gold to use to vote.
      * @param lesser The validator receiving fewer votes than `validator`, or 0 if `validator` has the
-     *   fewest votes of any validator validator.
+     *   fewest votes of any validator.
      * @param greater The validator receiving more votes than `validator`, or 0 if `validator` has the
-     *   most votes of any validator validator.
+     *   most votes of any validator.
      * @return True upon success.
-     * @dev Fails if `validator` is empty or not a validator validator.
+     * @dev Fails if `validator` is empty or not a validator.
      */
     function vote(address validator, uint256 value, address lesser, address greater)
     external
@@ -312,15 +312,15 @@ CalledByVm
 
     /**
      * @notice Revokes `value` pending votes for `validator`
-     * @param validator The validator validator to revoke votes from.
+     * @param validator The validator to revoke votes from.
      * @param value The number of votes to revoke.
      * @param lesser The validator receiving fewer votes than the validator for which the vote was revoked,
-     *   or 0 if that validator has the fewest votes of any validator validator.
+     *   or 0 if that validator has the fewest votes of any validator.
      * @param greater The validator receiving more votes than the validator for which the vote was revoked,
-     *   or 0 if that validator has the most votes of any validator validator.
+     *   or 0 if that validator has the most votes of any validator.
      * @param index The index of the validator in the account's voting list.
      * @return True upon success.
-     * @dev Fails if the account has not voted on a validator validator.
+     * @dev Fails if the account has not voted on a validator.
      */
     function revokePending(
         address validator,
@@ -348,14 +348,14 @@ CalledByVm
 
     /**
      * @notice Revokes all active votes for `validator`
-     * @param validator The validator validator to revoke votes from.
+     * @param validator The validator to revoke votes from.
      * @param lesser The validator receiving fewer votes than the validator for which the vote was revoked,
-     *   or 0 if that validator has the fewest votes of any validator validator.
+     *   or 0 if that validator has the fewest votes of any validator.
      * @param greater The validator receiving more votes than the validator for which the vote was revoked,
-     *   or 0 if that validator has the most votes of any validator validator.
+     *   or 0 if that validator has the most votes of any validator.
      * @param index The index of the validator in the account's voting list.
      * @return True upon success.
-     * @dev Fails if the account has not voted on a validator validator.
+     * @dev Fails if the account has not voted on a validator.
      */
     function revokeAllActive(address validator, address lesser, address greater, uint256 index)
     external
@@ -372,12 +372,12 @@ CalledByVm
      * @param validator The validator  to revoke votes from.
      * @param value The number of votes to revoke.
      * @param lesser The validator receiving fewer votes than the validator for which the vote was revoked,
-     *   or 0 if that validator has the fewest votes of any validator validator.
+     *   or 0 if that validator has the fewest votes of any validator.
      * @param greater The validator receiving more votes than the validator for which the vote was revoked,
-     *   or 0 if that validator has the most votes of any validator validator.
+     *   or 0 if that validator has the most votes of any validator.
      * @param index The index of the validator in the account's voting list.
      * @return True upon success.
-     * @dev Fails if the account has not voted on a validator validator.
+     * @dev Fails if the account has not voted on a validator.
      */
     function revokeActive(
         address validator,
@@ -420,12 +420,12 @@ CalledByVm
      *         been revoked yet, revokes additional active votes.
      *         Fundamentally calls `revokePending` and `revokeActive` but only resorts validators once.
      * @param account The account whose votes to `validator` should be decremented.
-     * @param validator The validator validator to decrement votes from.
+     * @param validator The validator to decrement votes from.
      * @param maxValue The maxinum number of votes to decrement and revoke.
      * @param lesser The validator receiving fewer votes than the validator for which the vote was revoked,
-     *               or 0 if that validator has the fewest votes of any validator validator.
+     *               or 0 if that validator has the fewest votes of any validator.
      * @param greater The validator receiving more votes than the validator for which the vote was revoked,
-     *                or 0 if that validator has the most votes of any validator validator.
+     *                or 0 if that validator has the most votes of any validator.
      * @param index The index of the validator in the account's voting list.
      * @return uint256 Number of votes successfully decremented and revoked, with a max of `value`.
      */
@@ -478,7 +478,7 @@ CalledByVm
 
     /**
      * @notice Returns the pending votes for `validator` made by `account`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @param account The address of the voting account.
      * @return The pending votes for `validator` made by `account`.
      */
@@ -492,7 +492,7 @@ CalledByVm
 
     /**
      * @notice Returns the active votes for `validator` made by `account`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @param account The address of the voting account.
      * @return The active votes for `validator` made by `account`.
      */
@@ -514,7 +514,7 @@ CalledByVm
 
     /**
      * @notice Returns the total votes for `validator` made by `account`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @param account The address of the voting account.
      * @return The total votes for `validator` made by `account`.
      */
@@ -530,7 +530,7 @@ CalledByVm
 
     /**
      * @notice Returns the active vote units for `validator` made by `account`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @param account The address of the voting account.
      * @return The active vote units for `validator` made by `account`.
      */
@@ -544,7 +544,7 @@ CalledByVm
 
     /**
      * @notice Returns the total active vote units made for `validator`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @return The total active vote units made for `validator`.
      */
     function getActiveVotesForValidator(address validator) public view returns (uint256) {
@@ -552,7 +552,7 @@ CalledByVm
     }
     /**
      * @notice Returns the total votes made for `validator`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @return The total votes made for `validator`.
      */
     function getTotalVotesForValidator(address validator) public view returns (uint256) {
@@ -561,7 +561,7 @@ CalledByVm
 
     /**
      * @notice Returns the active voters vote for `validator`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @return The active voters made for `validator`.
      */
     function getActiveVotersForValidator(address validator) public view returns (address[] memory) {
@@ -570,7 +570,7 @@ CalledByVm
 
     /**
      * @notice Returns the pending votes made for `validator`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @return The pending votes made for `validator`.
      */
     function getPendingVotesForValidator(address validator) public view returns (uint256) {
@@ -625,7 +625,7 @@ CalledByVm
             .newFixed(value)
             .multiply(multiplier);
 
-            require(getGoldToken().transfer(voterAddress, voterPayment.fromFixed()), "mint failed to voter Payment");
+            require(getGoldToken2().mint(voterAddress, voterPayment.fromFixed()), "mint failed to voter Payment");
             total = total + voterPayment.fromFixed();
             emit EpochRewardsDistributedToVoters(voterAddress, voterPayment.fromFixed());
         }
@@ -638,12 +638,12 @@ CalledByVm
 
     /**
      * @notice Increments the number of total votes for `validator` by `value`.
-     * @param validator The validator validator whose vote total should be incremented.
+     * @param validator The validator whose vote total should be incremented.
      * @param value The number of votes to increment.
      * @param lesser The validator receiving fewer votes than the validator for which the vote was cast,
-     *   or 0 if that validator has the fewest votes of any validator validator.
+     *   or 0 if that validator has the fewest votes of any validator.
      * @param greater The validator receiving more votes than the validator for which the vote was cast,
-     *   or 0 if that validator has the most votes of any validator validator.
+     *   or 0 if that validator has the most votes of any validator.
      */
     function incrementTotalVotes(address validator, uint256 value, address lesser, address greater)
     private
@@ -654,12 +654,12 @@ CalledByVm
 
     /**
      * @notice Decrements the number of total votes for `validator` by `value`.
-     * @param validator The validator validator whose vote total should be decremented.
+     * @param validator The validator whose vote total should be decremented.
      * @param value The number of votes to decrement.
      * @param lesser The validator receiving fewer votes than the validator for which the vote was revoked,
-     *   or 0 if that validator has the fewest votes of any validator validator.
+     *   or 0 if that validator has the fewest votes of any validator.
      * @param greater The validator receiving more votes than the validator for which the vote was revoked,
-     *   or 0 if that validator has the most votes of any validator validator.
+     *   or 0 if that validator has the most votes of any validator.
      */
     function decrementTotalVotes(address validator, uint256 value, address lesser, address greater)
     private
@@ -672,7 +672,7 @@ CalledByVm
 
     /**
      * @notice Marks a validator ineligible for electing validators.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @dev Can only be called by the registered "Validators" contract.
      */
     function markValidatorIneligible(address validator)
@@ -685,7 +685,7 @@ CalledByVm
 
     /**
      * @notice Marks a validator eligible for electing validators.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @param lesser The address of the validator that has received fewer votes than this validator.
      * @param greater The address of the validator that has received more votes than this validator.
      */
@@ -700,7 +700,7 @@ CalledByVm
 
     /**
      * @notice Increments the number of pending votes for `validator` made by `account`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @param account The address of the voting account.
      * @param value The number of votes.
      */
@@ -718,7 +718,7 @@ CalledByVm
 
     /**
      * @notice Decrements the number of pending votes for `validator` made by `account`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @param account The address of the voting account.
      * @param value The number of votes.
      */
@@ -738,7 +738,7 @@ CalledByVm
 
     /**
      * @notice Increments the number of active votes for `validator` made by `account`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @param account The address of the voting account.
      * @param value The number of votes.
      */
@@ -758,7 +758,7 @@ CalledByVm
 
     /**
      * @notice Decrements the number of active votes for `validator` made by `account`.
-     * @param validator The address of the validator validator.
+     * @param validator The address of the validator.
      * @param account The address of the voting account.
      * @param value The number of votes.
      */
@@ -931,9 +931,9 @@ CalledByVm
      * @param account Address to revoke votes from.
      * @param value Maximum amount of votes to revoke.
      * @param lessers The validators receiving fewer votes than the i'th `validator`, or 0 if
-     *                the i'th `validator` has the fewest votes of any validator validator.
+     *                the i'th `validator` has the fewest votes of any validator.
      * @param greaters The validators receivier more votes than the i'th `validator`, or 0 if
-     *                the i'th `validator` has the most votes of any validator validator.
+     *                the i'th `validator` has the most votes of any validator.
      * @param indices The indices of the i'th validator in the account's voting list.
      * @return Number of votes successfully decremented.
      */
