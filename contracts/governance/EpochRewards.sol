@@ -5,7 +5,6 @@ import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
 import "../common/CalledByVm.sol";
 import "../common/FixidityLib.sol";
-import "../common/Freezable.sol";
 import "../common/Initializable.sol";
 import "../common/UsingRegistry.sol";
 import "../common/UsingPrecompiles.sol";
@@ -16,6 +15,7 @@ import "../common/interfaces/ICeloVersionedContract.sol";
  */
 contract EpochRewards is
 ICeloVersionedContract,
+IElectionReward,
 Ownable,
 Initializable,
 UsingPrecompiles,
@@ -26,7 +26,6 @@ CalledByVm
     using SafeMath for uint256;
 
     uint256 public startTime = 0;
-    TargetVotingYieldParameters private targetVotingYieldParams;
     FixidityLib.Fraction private communityRewardFraction;
     address public communityPartner;
     uint256 public targetValidatorEpochPayment;
@@ -61,36 +60,20 @@ CalledByVm
     /**
      * @notice Used in place of the constructor to allow the contract to be upgradable via proxy.
      * @param registryAddress The address of the registry contract.
-     * @param targetVotingYieldInitial The initial relative target block reward for voters.
-     * @param targetVotingYieldMax The max relative target block reward for voters.
-     * @param targetVotingYieldAdjustmentFactor The target block reward adjustment factor for voters.
-     * @param rewardsMultiplierMax The max multiplier on target epoch rewards.
-     * @param rewardsMultiplierUnderspendAdjustmentFactor Adjusts the multiplier on target epoch
-     *   rewards when the protocol is running behind the target Gold supply.
-     * @param rewardsMultiplierOverspendAdjustmentFactor Adjusts the multiplier on target epoch
-     *   rewards when the protocol is running ahead of the target Gold supply.
-     * @param _targetVotingGoldFraction The percentage of floating Gold voting to target.
      * @param _targetValidatorEpochPayment The target validator epoch payment.
      * @param _communityRewardFraction The percentage of rewards that go the community funds.
      * @dev Should be called only once.
      */
     function initialize(
         address registryAddress,
-        uint256 targetVotingYieldInitial,
-        uint256 targetVotingYieldMax,
-        uint256 targetVotingYieldAdjustmentFactor,
-        uint256 _targetVotingGoldFraction,
         uint256 _targetValidatorEpochPayment,
         uint256 _communityRewardFraction,
         address _communityPartner
     ) external initializer {
         _transferOwnership(msg.sender);
         setRegistry(registryAddress);
-        setTargetVotingYieldParameters(targetVotingYieldMax, targetVotingYieldAdjustmentFactor);
-        setTargetVotingGoldFraction(_targetVotingGoldFraction);
         setTargetValidatorEpochPayment(_targetValidatorEpochPayment);
         setCommunityRewardFraction(_communityPartner, _communityRewardFraction);
-        setTargetVotingYield(targetVotingYieldInitial);
         startTime = now;
     }
 
@@ -162,8 +145,9 @@ CalledByVm
         return targetGoldSupplyIncrease;
     }
 
-
-
+    function getCommunityPartner() external view returns (address ){
+        return communityPartner;
+    }
 
 
 

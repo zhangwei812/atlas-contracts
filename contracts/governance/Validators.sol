@@ -379,7 +379,7 @@ CalledByVm
             uint256 remainPayment = totalPayment.fromFixed().sub(validatorCommission);
 
             //----------------- validator ---------------------
-            require(getGoldToken().mint(account, validatorCommission), "mint failed to validator account");
+            require(getGoldToken().transfer(account, validatorCommission), "mint failed to validator account");
             //----------------- voter ---------------------
             getElection().distributeEpochVotersRewards(account,remainPayment);
 

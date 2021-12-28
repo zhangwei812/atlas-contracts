@@ -112,8 +112,7 @@ CalledByVm
     event ValidatorVoteActivated(
         address indexed account,
         address indexed validator,
-        uint256 value,
-        uint256 units
+        uint256 value
     );
     event ValidatorPendingVoteRevoked(
         address indexed account,
@@ -123,8 +122,7 @@ CalledByVm
     event ValidatorActiveVoteRevoked(
         address indexed account,
         address indexed validator,
-        uint256 value,
-        uint256 units
+        uint256 value
     );
     event EpochRewardRemainsDistributedToValidators(address indexed validator, uint256 value);
 
@@ -295,8 +293,8 @@ CalledByVm
         uint256 value = pendingVote.value;
         require(value > 0, "Vote value cannot be zero");
         decrementPendingVotes(validator, account, value);
-        uint256 units = incrementActiveVotes(validator, account, value);
-        emit ValidatorVoteActivated(account, validator, value, units);
+        incrementActiveVotes(validator, account, value);
+        emit ValidatorVoteActivated(account, validator, value);
         return true;
     }
 
@@ -406,13 +404,13 @@ CalledByVm
             value <= getActiveVotesForValidatorByAccount(validator, account),
             "Vote value larger than active votes"
         );
-        uint256 amount = decrementActiveVotes(validator, account, value);
+        decrementActiveVotes(validator, account, value);
         decrementTotalVotes(validator, value, lesser, greater);
         getLockedGold().incrementNonvotingAccountBalance(account, value);
         if (getTotalVotesForValidatorByAccount(validator, account) == 0) {
             deleteElement(votes.validatorsVotedFor[account], validator, index);
         }
-        emit ValidatorActiveVoteRevoked(account, validator, value, amount);
+        emit ValidatorActiveVoteRevoked(account, validator, value);
         return true;
     }
 
@@ -450,8 +448,8 @@ CalledByVm
         uint256 activeVotes = getActiveVotesForValidatorByAccount(validator, account);
         if (activeVotes > 0 && remainingValue > 0) {
             uint256 decrementValue = Math.min(remainingValue, activeVotes);
-            uint256 units = decrementActiveVotes(validator, account, decrementValue);
-            emit ValidatorActiveVoteRevoked(account, validator, decrementValue, units);
+            decrementActiveVotes(validator, account, decrementValue);
+            emit ValidatorActiveVoteRevoked(account, validator, decrementValue);
             remainingValue = remainingValue.sub(decrementValue);
         }
         uint256 decrementedValue = maxValue.sub(remainingValue);
@@ -536,7 +534,7 @@ CalledByVm
      * @param account The address of the voting account.
      * @return The active vote units for `validator` made by `account`.
      */
-    function getActiveVoteUnitsForValidatorByAccount(address validator, address account)
+    function getActiveVoteForValidatorByAccount(address validator, address account)
     external
     view
     returns (uint256)
@@ -589,7 +587,7 @@ CalledByVm
     }
 
     function getTopValidators(uint256 topNum) external view returns (address[] memory) {
-        uint256 numElectionValidators = votes.total.eligible.numElementsGreaterThan(0,topNum);
+        uint256 numElectionValidators = votes.total.eligible.numElementsGreaterThan(0, topNum);
         return votes.total.eligible.headN(numElectionValidators);
     }
 
@@ -627,7 +625,7 @@ CalledByVm
             .newFixed(value)
             .multiply(multiplier);
 
-            require(getGoldToken().mint(voterAddress, voterPayment.fromFixed()), "mint failed to voter Payment");
+            require(getGoldToken().transfer(voterAddress, voterPayment.fromFixed()), "mint failed to voter Payment");
             total = total + voterPayment.fromFixed();
             emit EpochRewardsDistributedToVoters(voterAddress, voterPayment.fromFixed());
         }
@@ -691,7 +689,7 @@ CalledByVm
      * @param lesser The address of the validator that has received fewer votes than this validator.
      * @param greater The address of the validator that has received more votes than this validator.
      */
-    function markValidatorEligible(address lesser,address greater, address validator )
+    function markValidatorEligible(address lesser, address greater, address validator)
     external
     onlyRegisteredContract(VALIDATORS_REGISTRY_ID)
     {

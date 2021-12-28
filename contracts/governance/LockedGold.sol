@@ -175,7 +175,7 @@ contract LockedGold is
     Balances storage account = balances[msg.sender];
     // Prevent unlocking gold when voting on governance proposals so that the gold cannot be
     // used to vote more than once.
-    require(!getGovernance().isVoting(msg.sender), "Account locked");
+    //require(!getGovernance().isVoting(msg.sender), "Account locked");
     uint256 balanceRequirement = getValidators().getAccountLockedGoldRequirement(msg.sender);
     require(
       balanceRequirement == 0 ||
@@ -387,7 +387,7 @@ contract LockedGold is
       _decrementNonvotingAccountBalance(account, maxSlash.sub(difference));
       _incrementNonvotingAccountBalance(reporter, reward);
     }
-    address communityFund = registry.getAddressForOrDie(GOVERNANCE_REGISTRY_ID);
+    address communityFund = getElectionReward().getCommunityPartner();
     address payable communityFundPayable = address(uint160(communityFund));
     require(maxSlash.sub(reward) <= address(this).balance, "Inconsistent balance");
     communityFundPayable.sendValue(maxSlash.sub(reward));
