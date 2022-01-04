@@ -81,8 +81,10 @@ CalledByVm
     uint256 public commissionUpdateDelay;
     uint256 public slashingMultiplierResetPeriod;
     uint256 public downtimeGracePeriod;
+    uint256 public pledgeMultiplierInReward; //Proportion of pledge in reward   >0   <FIXED1_UINT
 
     event CommissionUpdateDelaySet(uint256 delay);
+    event PledgeMultiplierInRewardSet(uint256 delay);
     event ValidatorScoreParametersSet(uint256 exponent, uint256 adjustmentSpeed);
     event ValidatorLockedGoldRequirementsSet(uint256 value, uint256 duration);
     event ValidatorRegistered(address indexed validator, uint256  indexed commission);
@@ -143,6 +145,7 @@ CalledByVm
         uint256 validatorScoreAdjustmentSpeed,
         uint256 _slashingMultiplierResetPeriod,
         uint256 _commissionUpdateDelay,
+        uint256 _pledgeMultiplierInReward,
         uint256 _downtimeGracePeriod
     ) external initializer {
         _transferOwnership(msg.sender);
@@ -150,6 +153,7 @@ CalledByVm
         setValidatorLockedGoldRequirements(validatorRequirementValue, validatorRequirementDuration);
         setValidatorScoreParameters(validatorScoreExponent, validatorScoreAdjustmentSpeed);
         setCommissionUpdateDelay(_commissionUpdateDelay);
+        setPledgeMultiplierInReward(_pledgeMultiplierInReward);
         setSlashingMultiplierResetPeriod(_slashingMultiplierResetPeriod);
         setDowntimeGracePeriod(_downtimeGracePeriod);
     }
@@ -164,7 +168,15 @@ CalledByVm
         emit CommissionUpdateDelaySet(delay);
     }
 
-
+    /**
+     * @notice Updates the block delay for Proportion of pledge in reward
+     * @param delay Number of blocks to delay the update
+     */
+    function setPledgeMultiplierInReward(uint256 pledgeMultiplier) public onlyOwner {
+        require(pledgeMultiplier != pledgeMultiplierInReward, "Proportion of pledge in reward update delay not changed");
+        pledgeMultiplierInReward = pledgeMultiplier;
+        emit PledgeMultiplierInRewardSet(pledgeMultiplier);
+    }
 
     /**
      * @notice Updates the validator score parameters.
@@ -197,14 +209,20 @@ CalledByVm
 
 
     /**
-     * @notice Returns the block delay for a ValidatorValidator's commission udpdate.
+     * @notice Returns the block delay for a Validator's commission udpdate.
      * @return The block delay for a ValidatorValidator's commission udpdate.
      */
     function getCommissionUpdateDelay() external view returns (uint256) {
         return commissionUpdateDelay;
     }
 
-
+    /**
+     * @notice Returns the block delay for Validator's Proportion of pledge in reward.
+     * @return The block delay for a Validator's Proportion of pledge in reward.
+     */
+    function getPledgeMultiplierInReward() external view returns (uint256) {
+        return pledgeMultiplierInReward;
+    }
 
     /**
      * @notice Updates the Locked Gold requirements for Validators.
@@ -310,8 +328,8 @@ CalledByVm
      * @param uptime The Fixidity representation of the validator's uptime, between 0 and 1.
      * @return True upon success.
      */
-    function updateValidatorScoreFromSigner(address signer, uint256 uptime) external onlyVm() {
-        _updateValidatorScoreFromSigner(signer, uptime);
+    function updateValidatorScoreFromSigner(address signer, uint256 uptime) external onlyVm() returns (uint256){
+        return _updateValidatorScoreFromSigner(signer, uptime);
     }
 
     /**
@@ -319,9 +337,10 @@ CalledByVm
      * @param signer The validator signer of the validator whose score needs updating.
      * @param uptime The Fixidity representation of the validator's uptime, between 0 and 1.
      * @dev new_score = uptime ** exponent * adjustmentSpeed + old_score * (1 - adjustmentSpeed)
+                        uptime ** exponent
      * @return True upon success.
      */
-    function _updateValidatorScoreFromSigner(address signer, uint256 uptime) internal {
+    function _updateValidatorScoreFromSigner(address signer, uint256 uptime) internal returns (uint256) {
         address account = getAccounts().signerToAccount(signer);
         require(isValidator(account), "Not a validator");
 
@@ -338,6 +357,8 @@ CalledByVm
             Math.min(epochScore.unwrap(), newComponent.add(currentComponent).unwrap())
         );
         emit ValidatorScoreUpdated(account, validators[account].score.unwrap(), epochScore.unwrap());
+
+        return validators[account].score.unwrap();
     }
 
     /**
@@ -347,12 +368,12 @@ CalledByVm
      *   validator commission.
      * @return The total payment paid to the validator and voters.
      */
-    function distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment)
+    function distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment,uint256 totalScores)
     external
     onlyVm()
     returns (uint256)
     {
-        return _distributeEpochPaymentsFromSigner(signer, maxPayment);
+        return _distributeEpochPaymentsFromSigner(signer, maxPayment,totalScores);
     }
 
     /**
@@ -362,7 +383,7 @@ CalledByVm
      *   validator commission.
      * @return The total payment paid to the validator and voters.
      */
-    function _distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment)
+    function _distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment,uint256 totalScores)
     internal
     returns (uint256)
     {
@@ -372,13 +393,24 @@ CalledByVm
         // Both the validator and the validator must maintain the minimum locked gold balance in order to
         // receive epoch payments.
         if (meetsAccountLockedGoldRequirements(account)) {
-            FixidityLib.Fraction memory totalPayment = FixidityLib // maxPayment * score * multiplier
-            .newFixed(maxPayment)
-            .multiply(validators[account].slashInfo.multiplier);
-            uint256 validatorCommission = totalPayment.multiply(validators[account].commission).fromFixed();
+            FixidityLib.Fraction memory totalPayment = FixidityLib.newFixed(maxPayment);// maxPayment * score * multiplier
+            //totalScores = (N*p+s1+s2+s3...)
+            //totalPaymentMultiplier = (score + p) / totalScores
+            FixidityLib.Fraction memory  totalPaymentMultiplier=
+            (validators[account].score
+            .add(FixidityLib.newFixed(pledgeMultiplierInReward)))
+            .divide(FixidityLib.newFixed(totalScores));
+
+            totalPayment= totalPayment.multiply(totalPaymentMultiplier);
+            uint256 validatorCommission =
+            totalPayment
+            .multiply(validators[account].commission)
+            .multiply(validators[account].score)
+            .multiply(validators[account].slashInfo.multiplier).fromFixed();
+
             uint256 remainPayment = totalPayment.fromFixed().sub(validatorCommission);
 
-            //----------------- validator ---------------------
+            //----------------- validator -----------------
             require(getGoldToken2().mint(account, validatorCommission), "mint failed to validator account");
             //----------------- voter ---------------------
             getElection().distributeEpochVotersRewards(account,remainPayment);
