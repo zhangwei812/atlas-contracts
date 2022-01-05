@@ -81,7 +81,7 @@ CalledByVm
     uint256 public commissionUpdateDelay;
     uint256 public slashingMultiplierResetPeriod;
     uint256 public downtimeGracePeriod;
-    uint256 public pledgeMultiplierInReward; //Proportion of pledge in reward   >0   <FIXED1_UINT
+    FixidityLib.Fraction public pledgeMultiplierInReward; //Proportion of pledge in reward   >0   <FIXED1_UINT
 
     event CommissionUpdateDelaySet(uint256 delay);
     event PledgeMultiplierInRewardSet(uint256 delay);
@@ -170,11 +170,11 @@ CalledByVm
 
     /**
      * @notice Updates the block delay for Proportion of pledge in reward
-     * @param delay Number of blocks to delay the update
+     * @param pledgeMultiplier Number of blocks to delay the update
      */
     function setPledgeMultiplierInReward(uint256 pledgeMultiplier) public onlyOwner {
-        require(pledgeMultiplier != pledgeMultiplierInReward, "Proportion of pledge in reward update delay not changed");
-        pledgeMultiplierInReward = pledgeMultiplier;
+        require(!FixidityLib.wrap(pledgeMultiplier).equals(pledgeMultiplierInReward), "Proportion of pledge in reward update delay not changed");
+        pledgeMultiplierInReward = FixidityLib.wrap(pledgeMultiplier);
         emit PledgeMultiplierInRewardSet(pledgeMultiplier);
     }
 
@@ -221,7 +221,7 @@ CalledByVm
      * @return The block delay for a Validator's Proportion of pledge in reward.
      */
     function getPledgeMultiplierInReward() external view returns (uint256) {
-        return pledgeMultiplierInReward;
+        return pledgeMultiplierInReward.unwrap();
     }
 
     /**
@@ -368,12 +368,12 @@ CalledByVm
      *   validator commission.
      * @return The total payment paid to the validator and voters.
      */
-    function distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment,uint256 totalScores)
+    function distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment, uint256 totalScores)
     external
     onlyVm()
     returns (uint256)
     {
-        return _distributeEpochPaymentsFromSigner(signer, maxPayment,totalScores);
+        return _distributeEpochPaymentsFromSigner(signer, maxPayment, totalScores);
     }
 
     /**
@@ -383,7 +383,7 @@ CalledByVm
      *   validator commission.
      * @return The total payment paid to the validator and voters.
      */
-    function _distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment,uint256 totalScores)
+    function _distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment, uint256 totalScores)
     internal
     returns (uint256)
     {
@@ -393,17 +393,17 @@ CalledByVm
         // Both the validator and the validator must maintain the minimum locked gold balance in order to
         // receive epoch payments.
         if (meetsAccountLockedGoldRequirements(account)) {
-            FixidityLib.Fraction memory totalPayment = FixidityLib.newFixed(maxPayment);// maxPayment * score * multiplier
+            FixidityLib.Fraction memory totalPayment = FixidityLib.newFixed(maxPayment);
+            // maxPayment * score * multiplier
             //totalScores = (N*p+s1+s2+s3...)
             //totalPaymentMultiplier = (score + p) / totalScores
-            FixidityLib.Fraction memory  totalPaymentMultiplier=
-            (validators[account].score
-            .add(FixidityLib.newFixed(pledgeMultiplierInReward)))
-            .divide(FixidityLib.newFixed(totalScores));
+            FixidityLib.Fraction memory totalPaymentMultiplier =
+            validators[account].score.add(pledgeMultiplierInReward)
+            .divide(FixidityLib.wrap(totalScores));
 
-            totalPayment= totalPayment.multiply(totalPaymentMultiplier);
+            totalPayment = totalPayment.multiply(totalPaymentMultiplier);
             uint256 validatorCommission =
-            totalPayment
+             totalPayment
             .multiply(validators[account].commission)
             .multiply(validators[account].score)
             .multiply(validators[account].slashInfo.multiplier).fromFixed();
@@ -413,7 +413,7 @@ CalledByVm
             //----------------- validator -----------------
             require(getGoldToken2().mint(account, validatorCommission), "mint failed to validator account");
             //----------------- voter ---------------------
-            getElection().distributeEpochVotersRewards(account,remainPayment);
+            getElection().distributeEpochVotersRewards(account, remainPayment);
 
             emit ValidatorEpochPaymentDistributed(account, validatorCommission);
             return totalPayment.fromFixed();

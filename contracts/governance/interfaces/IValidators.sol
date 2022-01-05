@@ -1,7 +1,7 @@
 pragma solidity ^0.5.13;
 
 interface IValidators {
-    function registerValidator(uint256 commission, address lesser,address greater,bytes calldata, bytes calldata, bytes calldata)
+    function registerValidator(uint256 commission, address lesser, address greater, bytes calldata, bytes calldata, bytes calldata)
     external
     returns (bool);
 
@@ -41,7 +41,7 @@ interface IValidators {
     function getValidator(address account)
     external
     view
-    returns (bytes memory, bytes memory, uint256,address, uint256, uint256,uint256, uint256,uint256);
+    returns (bytes memory, bytes memory, uint256, address, uint256, uint256, uint256, uint256, uint256);
 
     //  function getValidatorNumMembers(address) external view returns (uint256);
     function getTopValidators(uint256) external view returns (address[] memory);
@@ -69,9 +69,9 @@ interface IValidators {
     function getValidatorSlashingMultiplier(address) external view returns (uint256);
 
     // only VM
-    function updateValidatorScoreFromSigner(address, uint256) external;
+    function updateValidatorScoreFromSigner(address, uint256) external returns (uint256);
 
-    function distributeEpochPaymentsFromSigner(address, uint256) external returns (uint256);
+    function distributeEpochPaymentsFromSigner(address, uint256, uint256) external returns (uint256);
 
     // only slasher
     function halveSlashingMultiplier(address) external;
