@@ -403,7 +403,7 @@ CalledByVm
 
             totalPayment = totalPayment.multiply(totalPaymentMultiplier);
             uint256 validatorCommission =
-             totalPayment
+            totalPayment
             .multiply(validators[account].commission)
             .multiply(validators[account].score)
             .multiply(validators[account].slashInfo.multiplier).fromFixed();
