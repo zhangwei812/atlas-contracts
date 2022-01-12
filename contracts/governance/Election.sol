@@ -603,7 +603,7 @@ CalledByVm
     internal
     {
         uint256 totalForValidator = getActiveVotesForValidator(validator);
-        address[] memory voters = getActiveVotersForValidator(validator);
+        address[] storage voters = votes.active.forValidator[validator].voters;
         uint256 total = 0;
         for (uint256 i = 0; i < voters.length; i = i.add(1)) {
             if (i == voters.length) {
@@ -612,9 +612,16 @@ CalledByVm
             address voterAddress = voters[i];
             uint256 voteAmount = votes.active.forValidator[validator].valueByAccount[voterAddress];
             //voter`s voteAmount == 0 delete it from forValidator
-            if (voteAmount == 0) {
-                deleteElement(votes.active.forValidator[validator].voters, voterAddress, i);
+            while (voteAmount == 0) {
+                deleteElement(voters, voterAddress, i);
+                if (i == voters.length) {
+                    break;
+                }
                 voterAddress = voters[i];
+                voteAmount = votes.active.forValidator[validator].valueByAccount[voterAddress];
+            }
+            if (i == voters.length) {
+                break;
             }
             //multiplier = voteAmount/totalForValidator
             FixidityLib.Fraction memory multiplier = FixidityLib
@@ -860,7 +867,7 @@ CalledByVm
 
     /**
      * @notice Returns lists of all validator validators and the number of votes they've received.
-     * @return Lists of all validator validators and the number of votes they've received.
+     * @return Lists of all  validators and the number of votes they've received.
      */
     function getTotalVotesForEligibleValidators()
     external

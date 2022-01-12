@@ -28,7 +28,7 @@ CalledByVm
     uint256 public startTime = 0;
     FixidityLib.Fraction private communityRewardFraction;
     address public communityPartner;
-    uint256 public targetValidatorEpochPayment;
+    uint256 public epochPayment;
 
     event TargetVotingGoldFractionSet(uint256 fraction);
     event CommunityRewardFundSet(address indexed partner, uint256 fraction);
@@ -114,8 +114,8 @@ CalledByVm
      * @return True upon success.
      */
     function setTargetValidatorEpochPayment(uint256 value) public onlyOwner returns (bool) {
-        require(value != targetValidatorEpochPayment, "Target validator epoch payment unchanged");
-        targetValidatorEpochPayment = value;
+        require(value != epochPayment, "Target validator epoch payment unchanged");
+        epochPayment = value;
         emit TargetValidatorEpochPaymentSet(value);
         return true;
     }
@@ -126,28 +126,15 @@ CalledByVm
      */
     function getTargetTotalEpochPaymentsInGold() public view returns (uint256) {
         return
-        numberValidatorsInCurrentSet().mul(targetValidatorEpochPayment);
+        epochPayment;
     }
 
-    /**
-     * @notice Returns the target gold supply increase used in calculating the rewards multiplier.
-     * @return The target increase in gold w/out the rewards multiplier.
-     */
-    function _getTargetGoldSupplyIncrease() internal view returns (uint256) {
-        uint256 targetGoldSupplyIncrease = getTargetTotalEpochPaymentsInGold();
-        // increase /= (1 - fraction) st the final community reward is fraction * increase
-        targetGoldSupplyIncrease = FixidityLib
-        .newFixed(targetGoldSupplyIncrease)
-        .divide(
-            FixidityLib.newFixed(1).subtract(communityRewardFraction)
-        )
-        .fromFixed();
-        return targetGoldSupplyIncrease;
-    }
+
 
     function getCommunityPartner() external view returns (address ){
         return communityPartner;
     }
+
 
 
 
@@ -161,13 +148,12 @@ CalledByVm
     view
     returns (uint256, uint256)
     {
-        uint256 targetGoldSupplyIncrease = _getTargetGoldSupplyIncrease();
-        return (
-        FixidityLib.newFixed(targetValidatorEpochPayment).fromFixed(),
-        FixidityLib
-        .newFixed(targetGoldSupplyIncrease)
+        uint256 communityFund = FixidityLib
+        .newFixed(epochPayment)
         .multiply(communityRewardFraction)
-        .fromFixed()
-        );
+        .fromFixed();
+        return (
+        epochPayment-communityFund,
+        communityFund);
     }
 }
