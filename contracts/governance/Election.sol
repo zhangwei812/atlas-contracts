@@ -257,7 +257,7 @@ CalledByVm
             require(validators.length < maxNumValidatorsVotedFor, "Voted for too many validators");
             validators.push(validator);
         }
-
+        require(value <= getLockedGold().getAccountNonvotingLockedGold(account), "Nonvoting Locked Gold too low");
         incrementPendingVotes(validator, account, value);
         incrementTotalVotes(validator, value, lesser, greater);
         getLockedGold().decrementNonvotingAccountBalance(account, value);
@@ -701,6 +701,7 @@ CalledByVm
     onlyRegisteredContract(VALIDATORS_REGISTRY_ID)
     {
         uint256 value = getTotalVotesForValidator(validator);
+        //will reload the last voters Info
         votes.total.eligible.insert(validator, value, lesser, greater);
         emit ValidatorMarkedEligible(validator);
     }
@@ -895,6 +896,7 @@ CalledByVm
     view
     returns (address[] memory)
     {
+        require(getTotalVotes() > 0, "require TotalVotes > 0");
         // Validators must have at least `electabilityThreshold` proportion of the total votes to be
         // considered for the election.
         uint256 requiredVotes = electabilityThreshold
