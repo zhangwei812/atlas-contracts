@@ -328,7 +328,7 @@ CalledByVm
      * @param uptime The Fixidity representation of the validator's uptime, between 0 and 1.
      * @return True upon success.
      */
-    function updateValidatorScoreFromSigner(address signer, uint256 uptime) external onlyVm() returns (uint256){
+    function updateValidatorScoreFromSigner(address signer, uint256 uptime) external onlyVm() returns (uint256, bool){
         return _updateValidatorScoreFromSigner(signer, uptime);
     }
 
@@ -339,7 +339,7 @@ CalledByVm
      * @dev new_score = uptime ** exponent * adjustmentSpeed + old_score * (1 - adjustmentSpeed)
      * @return True upon success.
      */
-    function _updateValidatorScoreFromSigner(address signer, uint256 uptime) internal returns (uint256) {
+    function _updateValidatorScoreFromSigner(address signer, uint256 uptime) internal returns (uint256, bool) {
         address account = getAccounts().signerToAccount(signer);
         //        require(isValidator(account), "Not a validator");
         if (isValidator(account)) {
@@ -356,9 +356,9 @@ CalledByVm
                 Math.min(epochScore.unwrap(), newComponent.add(currentComponent).unwrap())
             );
             emit ValidatorScoreUpdated(account, validators[account].score.unwrap(), epochScore.unwrap());
-            return validators[account].score.unwrap();
+            return (validators[account].score.unwrap(), true);
         }
-        return 0;
+        return (0, false);
     }
 
     /**
@@ -401,13 +401,14 @@ CalledByVm
                 validators[account].score.add(pledgeMultiplierInReward)
                 .divide(FixidityLib.wrap(totalScores));
 
-                totalPayment = totalPayment.multiply(totalPaymentMultiplier)
-                .multiply(validators[account].score);
-                //                .multiply(validators[account].slashInfo.multiplier); //todo slash
+                totalPayment = totalPayment.multiply(totalPaymentMultiplier);
+//                 .multiply(validators[account].slashInfo.multiplier); //todo slash
 
                 uint256 validatorCommission =
                 totalPayment
-                .multiply(validators[account].commission).fromFixed();
+                .multiply(validators[account].commission)
+                .multiply(validators[account].score).fromFixed();
+
                 uint256 remainPayment = totalPayment.fromFixed().sub(validatorCommission);
                 //----------------- validator -----------------
                 require(getGoldToken2().mint(account, validatorCommission), "mint failed to validator account");
