@@ -71,7 +71,7 @@ interface IValidators {
     // only VM
     function updateValidatorScoreFromSigner(address, uint256) external returns (uint256, bool);
 
-    function distributeEpochPaymentsFromSigner(address, uint256, uint256) external returns (uint256);
+    function distributeEpochPaymentsFromSigner(address, uint256, uint256) external returns (uint256,uint256);
 
     // only slasher
     function halveSlashingMultiplier(address) external;

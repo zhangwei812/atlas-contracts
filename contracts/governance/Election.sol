@@ -48,6 +48,7 @@ CalledByVm
         uint256 total;
         // Pending votes cast per voter.
         mapping(address => PendingVote) byAccount;
+        address[] voters;
     }
 
     // Pending votes are those for which no following elections have been held.
@@ -62,8 +63,15 @@ CalledByVm
     struct ValidatorActiveVotes {
         // The total number of active votes that have been cast for this validator.
         uint256 total;
-        mapping(address => uint256) valueByAccount; // voter => units
-        address[] voters;
+//        mapping(address => uint256) valueByAccount; // voter => units
+//        address[] voters;
+
+
+        // The total number of active votes by a voter is equal to the number of active vote units for
+        // that voter times the total number of active votes divided by the total number of active
+        // vote units.
+        uint256 totalUnits;
+        mapping(address => uint256) unitsByAccount;
     }
 
     // Active votes are those for which at least one following election has been held.
@@ -82,6 +90,7 @@ CalledByVm
     }
 
     struct Votes {
+        //pending and active can distinguish between before and after reward
         PendingVotes pending; //validator => voters pending
         ActiveVotes active;   //validator => voters active
         TotalVotes total;     //sort validators
@@ -490,27 +499,27 @@ CalledByVm
         return votes.pending.forValidator[validator].byAccount[account].value;
     }
 
-    /**
-     * @notice Returns the active votes for `validator` made by `account`.
-     * @param validator The address of the validator.
-     * @param account The address of the voting account.
-     * @return The active votes for `validator` made by `account`.
-     */
-    function getActiveVotesForValidatorByAccount(address validator, address account)
-    public
-    view
-    returns (uint256)
-    {
-        return votes.active.forValidator[validator].valueByAccount[account];
-    }
+    //    /**
+    //     * @notice Returns the active votes for `validator` made by `account`.
+    //     * @param validator The address of the validator.
+    //     * @param account The address of the voting account.
+    //     * @return The active votes for `validator` made by `account`.
+    //     */
+    //    function getActiveVotesForValidatorByAccount(address validator, address account)
+    //    public
+    //    view
+    //    returns (uint256)
+    //    {
+    //        return votes.active.forValidator[validator].valueByAccount[account];
+    //    }
 
-    function getActiveVotesForValidator(address validator, address account)
-    public
-    view
-    returns (uint256)
-    {
-        return votes.active.forValidator[validator].valueByAccount[account];
-    }
+//    function getActiveVotesForValidator(address validator, address account)
+//    public
+//    view
+//    returns (uint256)
+//    {
+//        return votes.active.forValidator[validator].valueByAccount[account];
+//    }
 
     /**
      * @notice Returns the total votes for `validator` made by `account`.
@@ -534,13 +543,13 @@ CalledByVm
      * @param account The address of the voting account.
      * @return The active vote units for `validator` made by `account`.
      */
-    function getActiveVoteForValidatorByAccount(address validator, address account)
-    external
-    view
-    returns (uint256)
-    {
-        return votes.active.forValidator[validator].valueByAccount[account];
-    }
+//    function getActiveVoteForValidatorByAccount(address validator, address account)
+//    external
+//    view
+//    returns (uint256)
+//    {
+//        return votes.active.forValidator[validator].valueByAccount[account];
+//    }
 
     /**
      * @notice Returns the total active vote units made for `validator`.
@@ -564,9 +573,9 @@ CalledByVm
      * @param validator The address of the validator.
      * @return The active voters made for `validator`.
      */
-    function getActiveVotersForValidator(address validator) public view returns (address[] memory) {
-        return votes.active.forValidator[validator].voters;
-    }
+//    function getActiveVotersForValidator(address validator) public view returns (address[] memory) {
+//        return votes.active.forValidator[validator].voters;
+//    }
 
     /**
      * @notice Returns the pending votes made for `validator`.
@@ -591,55 +600,64 @@ CalledByVm
         return votes.total.eligible.headN(numElectionValidators);
     }
 
-
-    function distributeEpochVotersRewards(address validator, uint256 value)
+    function distributeEpochVotersRewards(address validator, uint256 value, address lesser, address greater)
     external
-    onlyRegisteredContract(VALIDATORS_REGISTRY_ID)
+    onlyVm
     {
-        _distributeEpochVotersRewards(validator, value);
+        _distributeEpochVotersRewards(validator, value, lesser, greater);
     }
 
-    function _distributeEpochVotersRewards(address validator, uint256 value)
+    function _distributeEpochVotersRewards(address validator, uint256 value, address lesser, address greater)
     internal
     {
-        uint256 totalForValidator = getActiveVotesForValidator(validator);
-        address[] storage voters = votes.active.forValidator[validator].voters;
-        uint256 total = 0;
-        for (uint256 i = 0; i < voters.length; i = i.add(1)) {
-            if (i == voters.length) {
-                break;
-            }
-            address voterAddress = voters[i];
-            uint256 voteAmount = votes.active.forValidator[validator].valueByAccount[voterAddress];
-            //voter`s voteAmount == 0 delete it from forValidator
-            while (voteAmount == 0) {
-                deleteElement(voters, voterAddress, i);
-                if (i == voters.length) {
-                    break;
-                }
-                voterAddress = voters[i];
-                voteAmount = votes.active.forValidator[validator].valueByAccount[voterAddress];
-            }
-            if (i == voters.length) {
-                break;
-            }
-            //multiplier = voteAmount/totalForValidator
-            FixidityLib.Fraction memory multiplier = FixidityLib
-            .newFixed(voteAmount)
-            .divide(FixidityLib.newFixed(totalForValidator));
+        //----------------todo delete -----
+//        uint256 totalForValidator = getActiveVotesForValidator(validator);
+//        address[] storage voters = votes.active.forValidator[validator].voters;
+//        uint256 total = 0;
+//        for (uint256 i = 0; i < voters.length; i = i.add(1)) {
+//            if (i == voters.length) {
+//                break;
+//            }
+//            address voterAddress = voters[i];
+//            uint256 voteAmount = votes.active.forValidator[validator].valueByAccount[voterAddress];
+//            //voter`s voteAmount == 0 delete it from forValidator
+//            while (voteAmount == 0) {
+//                deleteElement(voters, voterAddress, i);
+//                if (i == voters.length) {
+//                    break;
+//                }
+//                voterAddress = voters[i];
+//                voteAmount = votes.active.forValidator[validator].valueByAccount[voterAddress];
+//            }
+//            if (i == voters.length) {
+//                break;
+//            }
+//            //multiplier = voteAmount/totalForValidator
+//            FixidityLib.Fraction memory multiplier = FixidityLib
+//            .newFixed(voteAmount)
+//            .divide(FixidityLib.newFixed(totalForValidator));
+//
+//            FixidityLib.Fraction memory voterPayment = FixidityLib
+//            .newFixed(value)
+//            .multiply(multiplier);
+//
+//            require(getGoldToken2().mint(voterAddress, voterPayment.fromFixed()), "mint failed to voter Payment");
+//            total = total + voterPayment.fromFixed();
+//            emit EpochRewardsDistributedToVoters(voterAddress, voterPayment.fromFixed());
+//        }
+//        // If there are any remaining, add them to the validator
+//        if (value > total) {
+//            emit EpochRewardRemainsDistributedToValidators(validator, value - total);
+//        }
 
-            FixidityLib.Fraction memory voterPayment = FixidityLib
-            .newFixed(value)
-            .multiply(multiplier);
+        if (votes.total.eligible.contains(validator)) {
+            uint256 newVoteTotal = votes.total.eligible.getValue(validator).add(value);
+            votes.total.eligible.update(validator, newVoteTotal, lesser, greater);
+        }
 
-            require(getGoldToken2().mint(voterAddress, voterPayment.fromFixed()), "mint failed to voter Payment");
-            total = total + voterPayment.fromFixed();
-            emit EpochRewardsDistributedToVoters(voterAddress, voterPayment.fromFixed());
-        }
-        // If there are any remaining, add them to the validator
-        if (value > total) {
-            emit EpochRewardRemainsDistributedToValidators(validator, value - total);
-        }
+        votes.active.forValidator[validator].total = votes.active.forValidator[validator].total.add(value);
+        votes.active.total = votes.active.total.add(value);
+        emit EpochRewardsDistributedToVoters(validator, value);
     }
 
 
@@ -718,10 +736,13 @@ CalledByVm
 
         ValidatorPendingVotes storage validatorPending = pending.forValidator[validator];
         validatorPending.total = validatorPending.total.add(value);
+        validatorPending.voters.push(account);
+
 
         PendingVote storage pendingVote = validatorPending.byAccount[account];
         pendingVote.value = pendingVote.value.add(value);
         pendingVote.epoch = getEpochNumber();
+
     }
 
     /**
@@ -741,6 +762,7 @@ CalledByVm
         pendingVote.value = pendingVote.value.sub(value);
         if (pendingVote.value == 0) {
             pendingVote.epoch = 0;
+            delete (validatorPending.voters);
         }
     }
 
@@ -759,8 +781,17 @@ CalledByVm
         ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
         validatorActive.total = validatorActive.total.add(value);
 
-        validatorActive.valueByAccount[account] = validatorActive.valueByAccount[account].add(value);
-        validatorActive.voters.push(account);
+
+//        //-----------todo  delete ------------
+//        validatorActive.valueByAccount[account] = validatorActive.valueByAccount[account].add(value);
+//        validatorActive.voters.push(account);
+
+
+        uint256 units = votesToUnits(validator, value);
+        validatorActive.totalUnits = validatorActive.totalUnits.add(units);
+        validatorActive.unitsByAccount[account] = validatorActive.unitsByAccount[account].add(units);
+
+
         return value;
     }
 
@@ -777,12 +808,29 @@ CalledByVm
         ActiveVotes storage active = votes.active;
         active.total = active.total.sub(value);
 
+//        //-------------------todo delete -------------
+//        // Rounding may cause votesToUnits to return 0 for value != 0, preventing users
+//        // from revoking the last of their votes. The case where value == votes is special cased
+//        // to prevent this.
+        ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
+//        validatorActive.total = validatorActive.total.sub(value);
+//        validatorActive.valueByAccount[account] = validatorActive.valueByAccount[account].sub(value);
+
+        //--------------------------
         // Rounding may cause votesToUnits to return 0 for value != 0, preventing users
         // from revoking the last of their votes. The case where value == votes is special cased
         // to prevent this.
-        ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
+        uint256 units = 0;
+        uint256 activeVotes = getActiveVotesForValidatorByAccount(validator, account);
+        if (activeVotes == value) {
+            units = validatorActive.unitsByAccount[account];
+        } else {
+            units = votesToUnits(validator, value);
+        }
         validatorActive.total = validatorActive.total.sub(value);
-        validatorActive.valueByAccount[account] = validatorActive.valueByAccount[account].sub(value);
+        validatorActive.totalUnits = validatorActive.totalUnits.sub(units);
+        validatorActive.unitsByAccount[account] = validatorActive.unitsByAccount[account].sub(units);
+
         return value;
     }
 
@@ -981,6 +1029,81 @@ CalledByVm
         require(info.remainingValue == 0, "Failure to decrement all votes.");
         return value;
     }
+
+
+    /**
+         * @notice Returns the active votes for `validator` made by `account`.
+         * @param validator The address of the validator.
+         * @param account The address of the voting account.
+         * @return The active votes for `validator` made by `account`.
+     */
+    function getActiveVotesForValidatorByAccount(address validator, address account)
+    public
+    view
+    returns (uint256)
+    {
+        return unitsToVotes(validator, votes.active.forValidator[validator].unitsByAccount[account]);
+    }
+
+    /**
+     * @notice Returns the number of units corresponding to `value` active votes.
+     * @param validator The address of the validator.
+     * @param value The number of active votes.
+     * @return The corresponding number of units.
+     */
+    function votesToUnits(address validator, uint256 value) private view returns (uint256) {
+        if (votes.active.forValidator[validator].totalUnits == 0) {
+            return value.mul(UNIT_PRECISION_FACTOR);
+        } else {
+            return
+            value.mul(votes.active.forValidator[validator].totalUnits).div(votes.active.forValidator[validator].total);
+        }
+    }
+
+    /**
+     * @notice Returns the number of active votes corresponding to `value` units.
+     * @param validator The address of the validator.
+     * @param value The number of units.
+     * @return The corresponding number of active votes.
+     */
+    function unitsToVotes(address validator, uint256 value) private view returns (uint256) {
+        if (votes.active.forValidator[validator].totalUnits == 0) {
+            return 0;
+        } else {
+            return
+            value.mul(votes.active.forValidator[validator].total).div(votes.active.forValidator[validator].totalUnits);
+        }
+    }
+
+
+    function activeAllPending(address[] calldata validators)
+    external
+    nonReentrant
+    returns (bool)
+    {
+        for (uint256 i = 0; i < validators.length; i = i.add(1)) {
+            _activeAllPending(validators[i]);
+        }
+        return true;
+    }
+
+    function _activeAllPending(address validator) internal returns (bool) {
+        address[] memory voters = votes.pending.forValidator[validator].voters;
+        for (uint256 i = 0; i < voters.length; i = i.add(1)) {
+            address account = voters[i];
+            PendingVote storage pendingVote = votes.pending.forValidator[validator].byAccount[account];
+            if (pendingVote.epoch < getEpochNumber()) {
+                uint256 value = pendingVote.value;
+                if (value > 0) {
+                    decrementPendingVotes(validator, account, value);
+                    incrementActiveVotes(validator, account, value);
+                    emit ValidatorVoteActivated(account, validator, value);
+                }
+            }
+        }
+        return true;
+    }
+
 }
 
 

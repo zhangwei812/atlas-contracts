@@ -371,7 +371,7 @@ CalledByVm
     function distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment, uint256 totalScores)
     external
     onlyVm()
-    returns (uint256)
+    returns (uint256, uint256)
     {
         return _distributeEpochPaymentsFromSigner(signer, maxPayment, totalScores);
     }
@@ -385,7 +385,7 @@ CalledByVm
      */
     function _distributeEpochPaymentsFromSigner(address signer, uint256 maxPayment, uint256 totalScores)
     internal
-    returns (uint256)
+    returns (uint256, uint256)
     {
         address account = getAccounts().signerToAccount(signer);
         if (isValidator(account)) {
@@ -402,7 +402,7 @@ CalledByVm
                 .divide(FixidityLib.wrap(totalScores));
 
                 totalPayment = totalPayment.multiply(totalPaymentMultiplier);
-//                 .multiply(validators[account].slashInfo.multiplier); //todo slash
+                //                 .multiply(validators[account].slashInfo.multiplier); //todo slash
 
                 uint256 validatorCommission =
                 totalPayment
@@ -412,17 +412,19 @@ CalledByVm
                 uint256 remainPayment = totalPayment.fromFixed().sub(validatorCommission);
                 //----------------- validator -----------------
                 require(getGoldToken2().mint(account, validatorCommission), "mint failed to validator account");
+
                 //----------------- voter ---------------------
-                if (remainPayment > 0) {
-                    getElection().distributeEpochVotersRewards(account, remainPayment);
-                }
+//                if (remainPayment > 0) {
+//                    getElection().distributeEpochVotersRewards(account, remainPayment);
+//                }
+                //----------------------------------------------
                 emit ValidatorEpochPaymentDistributed(account, validatorCommission);
-                return totalPayment.fromFixed();
+                return (totalPayment.fromFixed(), remainPayment);
             } else {
-                return 0;
+                return (0, 0);
             }
         } else {
-            return 0;
+            return (0, 0);
         }
     }
 

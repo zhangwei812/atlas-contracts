@@ -28,7 +28,7 @@ interface IElection {
   function getPendingVotesForValidatorByAccount(address, address) external view returns (uint256);
   function getActiveVotesForValidatorByAccount(address, address) external view returns (uint256);
   function getTotalVotesForValidatorByAccount(address, address) external view returns (uint256);
-  function getActiveVoteForValidatorByAccount(address, address) external view returns (uint256);
+//  function getActiveVoteForValidatorByAccount(address, address) external view returns (uint256);
   function getTotalVotesForValidator(address) external view returns (uint256);
   function getActiveVotesForValidator(address) external view returns (uint256);
   function getPendingVotesForValidator(address) external view returns (uint256);
@@ -49,6 +49,6 @@ interface IElection {
   function setMaxNumValidatorsVotedFor(uint256) external returns (bool);
   function setElectabilityThreshold(uint256) external returns (bool);
 
-  // only only VALIDATORS Contract
-  function distributeEpochVotersRewards(address, uint256) external;
+  // only only VM Contract
+  function distributeEpochVotersRewards(address, uint256,address, address) external;
 }
