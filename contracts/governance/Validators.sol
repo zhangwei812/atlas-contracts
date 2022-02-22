@@ -406,17 +406,16 @@ CalledByVm
 
                 uint256 validatorCommission =
                 totalPayment
-                .multiply(validators[account].commission)
-                .multiply(validators[account].score).fromFixed();
+                .multiply(validators[account].commission).fromFixed();
 
                 uint256 remainPayment = totalPayment.fromFixed().sub(validatorCommission);
                 //----------------- validator -----------------
                 require(getGoldToken2().mint(account, validatorCommission), "mint failed to validator account");
 
                 //----------------- voter ---------------------
-//                if (remainPayment > 0) {
-//                    getElection().distributeEpochVotersRewards(account, remainPayment);
-//                }
+                //                if (remainPayment > 0) {
+                //                    getElection().distributeEpochVotersRewards(account, remainPayment);
+                //                }
                 //----------------------------------------------
                 emit ValidatorEpochPaymentDistributed(account, validatorCommission);
                 return (totalPayment.fromFixed(), remainPayment);
