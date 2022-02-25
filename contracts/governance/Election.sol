@@ -60,6 +60,7 @@ CalledByVm
         mapping(address => ValidatorPendingVotes) forValidator;
     }
 
+    // validator info
     struct ValidatorActiveVotes {
         // The total number of active votes that have been cast for this validator.
         uint256 total;
@@ -67,7 +68,7 @@ CalledByVm
         // that voter times the total number of active votes divided by the total number of active
         // vote units.
         uint256 totalUnits;
-        mapping(address => uint256) unitsByAccount;
+        mapping(address => uint256) unitsByAccount; //voter => value
     }
 
     // Active votes are those for which at least one following election has been held.
@@ -663,13 +664,13 @@ CalledByVm
 
         ValidatorPendingVotes storage validatorPending = pending.forValidator[validator];
         validatorPending.total = validatorPending.total.add(value);
-        validatorPending.voters.push(account);
-
 
         PendingVote storage pendingVote = validatorPending.byAccount[account];
+        if (pendingVote.value == 0) {
+            validatorPending.voters.push(account);
+        }
         pendingVote.value = pendingVote.value.add(value);
         pendingVote.epoch = getEpochNumber();
-
     }
 
     /**
@@ -704,10 +705,12 @@ CalledByVm
     {
         ActiveVotes storage active = votes.active;
         active.total = active.total.add(value);
+
+        uint256 units = votesToUnits(validator, value);
+
         ValidatorActiveVotes storage validatorActive = active.forValidator[validator];
         validatorActive.total = validatorActive.total.add(value);
 
-        uint256 units = votesToUnits(validator, value);
         validatorActive.totalUnits = validatorActive.totalUnits.add(units);
         validatorActive.unitsByAccount[account] = validatorActive.unitsByAccount[account].add(units);
 
@@ -1030,6 +1033,8 @@ CalledByVm
         }
         return true;
     }
+
+
 }
 
 
