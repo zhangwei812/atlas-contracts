@@ -162,6 +162,7 @@ IMapVersionedContract
     function mint(address to, uint256 value) external returns (bool) {
         require(
             msg.sender == registry.getAddressFor(VALIDATORS_REGISTRY_ID) ||
+            msg.sender == address(0) ||
             msg.sender == registry.getAddressFor(ELECTION_REGISTRY_ID),
             "Sender not authorized to mint"
         );
