@@ -163,13 +163,13 @@ contract UsingPrecompiles {
    *   account address. 96 bytes.
    * @return True upon success.
    */
-  function checkProofOfPossession(address sender, bytes memory blsKey, bytes memory blsPop)
+  function checkProofOfPossession(address sender, bytes memory blsKey,bytes memory blsG1Key, bytes memory blsPop)
     public
     view
     returns (bool)
   {
     bool success;
-    (success, ) = PROOF_OF_POSSESSION.staticcall(abi.encodePacked(sender, blsKey, blsPop));
+    (success, ) = PROOF_OF_POSSESSION.staticcall(abi.encodePacked(sender, blsKey,blsG1Key, blsPop));
     return success;
   }
 
