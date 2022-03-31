@@ -29,10 +29,12 @@ CalledByVm
     FixidityLib.Fraction private communityRewardFraction;
     address public communityPartner;
     uint256 public epochPayment;
+    uint256 public epochRelayerPayment;
 
     event TargetVotingGoldFractionSet(uint256 fraction);
     event CommunityRewardFundSet(address indexed partner, uint256 fraction);
     event TargetValidatorEpochPaymentSet(uint256 payment);
+    event TargetRelayerEpochPaymentSet(uint256 payment);
     event TargetVotingYieldParametersSet(uint256 max, uint256 adjustmentFactor);
     event TargetVotingYieldSet(uint256 target);
     event RewardsMultiplierParametersSet(
@@ -67,12 +69,14 @@ CalledByVm
     function initialize(
         address registryAddress,
         uint256 _targetValidatorEpochPayment,
+        uint256 _targetRelayerEpochPayment,
         uint256 _communityRewardFraction,
         address _communityPartner
     ) external initializer {
         _transferOwnership(msg.sender);
         setRegistry(registryAddress);
         setTargetValidatorEpochPayment(_targetValidatorEpochPayment);
+        setTargetRelayerEpochPayment(_targetRelayerEpochPayment);
         setCommunityRewardFraction(_communityPartner, _communityRewardFraction);
         startTime = now;
     }
@@ -121,6 +125,17 @@ CalledByVm
     }
 
     /**
+      * @notice Sets the target per-epoch payment in MAP  for Relayer.
+      * @param value The value in MAP .
+      * @return True upon success.
+      */
+    function setTargetRelayerEpochPayment(uint256 value) public onlyOwner returns (bool) {
+        require(value != epochRelayerPayment, "Target validator epoch payment unchanged");
+        epochRelayerPayment = value;
+        emit TargetRelayerEpochPaymentSet(value);
+        return true;
+    }
+    /**
      * @notice Returns the total target epoch payments to validators, converted to Gold.
      * @return The total target epoch payments to validators, converted to Gold.
      */
@@ -146,7 +161,7 @@ CalledByVm
     function calculateTargetEpochRewards()
     external
     view
-    returns (uint256, uint256)
+    returns (uint256,uint256, uint256)
     {
         uint256 communityFund = FixidityLib
         .newFixed(epochPayment)
@@ -154,6 +169,7 @@ CalledByVm
         .fromFixed();
         return (
         epochPayment-communityFund,
-        communityFund);
+        communityFund,
+        epochRelayerPayment);
     }
 }
