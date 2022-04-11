@@ -53,6 +53,7 @@ CalledByVm
     struct PublicKeys {
         bytes ecdsa;
         bytes bls;
+        bytes blsG1;
     }
 
     struct Validator {
@@ -247,12 +248,7 @@ CalledByVm
 
     /**
      * @notice Registers a validator
-     * @param ecdsaPublicKey The ECDSA public key that the validator is using for consensus, should
-     *   match the validator signer. 64 bytes.
-     * @param blsPublicKey The BLS public key that the validator is using for consensus, should pass
-     *   proof of possession. 96 bytes.
-     * @param blsPop The BLS public key proof-of-possession, which consists of a signature on the
-     *   account address. 48 bytes.
+
      * @return True upon success.
      * @dev Fails if the account is already a validator or  validator.
      * @dev Fails if the account does not have sufficient Locked Gold.
@@ -260,26 +256,17 @@ CalledByVm
     function registerValidator(
         uint256 commission,
         address lesser,
-        address greater,
-        bytes calldata ecdsaPublicKey,
-        bytes calldata blsPublicKey,
-        bytes calldata blsPop
+        address greater
     ) external nonReentrant returns (bool) {
         require(commission <= FixidityLib.fixed1().unwrap(), "Commission can't be greater than 100%");
         address account = getAccounts().validatorSignerToAccount(msg.sender);
-        require(!isValidator(account), "Already registered");
+        require(isValidator(account), "Already registered");
         uint256 lockedGoldBalance = getLockedGold().getAccountTotalLockedGold(account);
         require(lockedGoldBalance >= validatorLockedGoldRequirements.value, "Deposit too small");
         Validator storage validator = validators[account];
-        address signer = getAccounts().getValidatorSigner(account);
-        require(
-            _updateEcdsaPublicKey(validator, account, signer, ecdsaPublicKey),
-            "Error updating ECDSA public key"
-        );
-        require(
-            _updateBlsPublicKey(validator, account, blsPublicKey, blsPop),
-            "Error updating BLS public key"
-        );
+
+        require(validators[account].publicKeys.bls.length > 0, "no have blsPublicKey");
+
         registeredValidators.push(account);
         //------------ New changes -------
         validator.commission = FixidityLib.wrap(commission);
@@ -289,7 +276,37 @@ CalledByVm
         getElection().markValidatorEligible(lesser, greater, account);
         return true;
     }
+    /*
+    * @param ecdsaPublicKey The ECDSA public key that the validator is using for consensus, should
+    *   match the validator signer. 64 bytes.
+    * @param blsPublicKey The BLS public key that the validator is using for consensus, should pass
+    *   proof of possession. 96 bytes.
+    * @param blsPop The BLS public key proof-of-possession, which consists of a signature on the
+    *   account address. 48 bytes.
+    */
+    function registerValidatorPre(
+        bytes calldata blsPublicKey,
+        bytes calldata blsG1PublicKey,
+        bytes calldata blsPop,
+        bytes calldata ecdsaPublicKey
+    ) external nonReentrant returns (bool) {
+        address account = getAccounts().validatorSignerToAccount(msg.sender);
+//                require(!isValidator(account), "Already registered");
+        //        uint256 lockedGoldBalance = getLockedGold().getAccountTotalLockedGold(account);
+        //        require(lockedGoldBalance >= validatorLockedGoldRequirements.value, "Deposit too small");
+        Validator storage validator = validators[account];
+        address signer = getAccounts().getValidatorSigner(account);
+        require(
+            _updateEcdsaPublicKey(validator, account, signer, ecdsaPublicKey),
+            "Error updating ECDSA public key"
+        );
+        require(
+            _updateBlsPublicKey(validator, account, blsPublicKey, blsG1PublicKey, blsPop),
+            "Error updating BLS public key"
+        );
 
+        return true;
+    }
 
     /**
      * @notice Returns the parameters that govern how a validator's score is calculated.
@@ -469,7 +486,7 @@ CalledByVm
      *   account address. 48 bytes.
      * @return True upon success.
      */
-    function updateBlsPublicKey(bytes calldata blsPublicKey, bytes calldata blsPop)
+    function updateBlsPublicKey(bytes calldata blsPublicKey, bytes calldata blsG1PublicKey, bytes calldata blsPop)
     external
     returns (bool)
     {
@@ -477,7 +494,7 @@ CalledByVm
         require(isValidator(account), "Not a validator");
         Validator storage validator = validators[account];
         require(
-            _updateBlsPublicKey(validator, account, blsPublicKey, blsPop),
+            _updateBlsPublicKey(validator, account, blsPublicKey, blsG1PublicKey, blsPop),
             "Error updating BLS public key"
         );
         return true;
@@ -497,14 +514,15 @@ CalledByVm
         Validator storage validator,
         address account,
         bytes memory blsPublicKey,
+        bytes memory blsG1PubKey,
         bytes memory blsPop
     ) private returns (bool) {
-//        require(blsPublicKey.length == 96, "Wrong BLS public key length");
-//        require(blsPop.length == 48, "Wrong BLS PoP length");
-                require(blsPublicKey.length == 33, "Wrong BLS public key length");
-                require(blsPop.length == 129, "Wrong BLS PoP length");
-        require(checkProofOfPossession(account, blsPublicKey, blsPop), "Invalid BLS PoP");
+        require(blsG1PubKey.length == 129, "Wrong blsG1 public key length");
+        require(blsPublicKey.length == 129, "Wrong BLS public key length");
+        require(blsPop.length == 64, "Wrong BLS PoP length");
+        require(checkProofOfPossession(account, blsPublicKey, blsG1PubKey, blsPop), "Invalid BLS PoP");
         validator.publicKeys.bls = blsPublicKey;
+        validator.publicKeys.blsG1 = blsG1PubKey;
         emit ValidatorBlsPublicKeyUpdated(account, blsPublicKey);
         return true;
     }
@@ -570,6 +588,7 @@ CalledByVm
         address signer,
         bytes calldata ecdsaPublicKey,
         bytes calldata blsPublicKey,
+        bytes calldata blsG1PublicKey,
         bytes calldata blsPop
     ) external onlyRegisteredContract(ACCOUNTS_REGISTRY_ID) returns (bool) {
         require(isValidator(account), "Not a validator");
@@ -579,7 +598,7 @@ CalledByVm
             "Error updating ECDSA public key"
         );
         require(
-            _updateBlsPublicKey(validator, account, blsPublicKey, blsPop),
+            _updateBlsPublicKey(validator, account, blsPublicKey, blsG1PublicKey, blsPop),
             "Error updating BLS public key"
         );
         return true;
@@ -658,7 +677,20 @@ CalledByVm
         require(isValidator(account), "Not a validator");
         return validators[account].publicKeys.bls;
     }
-
+    /**
+    * @notice Returns the validator BLS key.
+    * @param signer The account that registered the validator or its authorized signing address.
+    * @return The validator BLS key.
+    */
+    function getValidatorBlsG1PublicKeyFromSigner(address signer)
+    external
+    view
+    returns (bytes memory blsG1PublicKey)
+    {
+        address account = getAccounts().signerToAccount(signer);
+        require(isValidator(account), "Not a validator");
+        return validators[account].publicKeys.blsG1;
+    }
     /**
      * @notice Returns validator information.
      * @param account The account that registered the validator.
@@ -670,6 +702,7 @@ CalledByVm
     returns (
         bytes memory ecdsaPublicKey,
         bytes memory blsPublicKey,
+        bytes memory blsG1PublicKey,
         uint256 score,
         address signer,
     //--------- New changes -----
@@ -682,11 +715,13 @@ CalledByVm
     {
         require(isValidator(account), "Not a validator");
         Validator storage validator = validators[account];
+        address addr = getAccounts().getValidatorSigner(account);
         return (
         validator.publicKeys.ecdsa,
         validator.publicKeys.bls,
+        validator.publicKeys.blsG1,
         validator.score.unwrap(),
-        getAccounts().getValidatorSigner(account),
+        addr,
         //--------- New changes -----
         validator.commission.unwrap(),
         validator.nextCommission.unwrap(),

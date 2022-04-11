@@ -1,13 +1,17 @@
 pragma solidity ^0.5.13;
 
 interface IValidators {
-    function registerValidator(uint256 commission, address lesser, address greater, bytes calldata, bytes calldata, bytes calldata)
+    function registerValidator(uint256 commission, address lesser, address greater)
+    external
+    returns (bool);
+
+    function registerValidatorPre(bytes calldata, bytes calldata,bytes calldata, bytes calldata)
     external
     returns (bool);
 
     function deregisterValidator(uint256) external returns (bool);
 
-    function updateBlsPublicKey(bytes calldata, bytes calldata) external returns (bool);
+    function updateBlsPublicKey(bytes calldata,bytes calldata, bytes calldata) external returns (bool);
 
     function updateCommission() external;
 
@@ -41,7 +45,7 @@ interface IValidators {
     function getValidator(address account)
     external
     view
-    returns (bytes memory, bytes memory, uint256, address, uint256, uint256, uint256, uint256, uint256);
+    returns (bytes memory, bytes memory, bytes memory, uint256, address, uint256, uint256, uint256, uint256, uint256);
 
     //  function getValidatorNumMembers(address) external view returns (uint256);
     function getTopValidators(uint256) external view returns (address[] memory);
@@ -51,7 +55,7 @@ interface IValidators {
     // only registered contract
     function updateEcdsaPublicKey(address, address, bytes calldata) external returns (bool);
 
-    function updatePublicKeys(address, address, bytes calldata, bytes calldata, bytes calldata)
+    function updatePublicKeys(address, address, bytes calldata,bytes calldata, bytes calldata, bytes calldata)
     external
     returns (bool);
 

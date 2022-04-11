@@ -277,7 +277,7 @@ IMapVersionedContract,
    * @param v The recovery id of the incoming ECDSA signature.
    * @param r Output value r of the ECDSA signature.
    * @param s Output value s of the ECDSA signature.
-   * @dev v, r, s constitute `signer`'s EIP712 signature over `role`, `msg.sender`  
+   * @dev v, r, s constitute `signer`'s EIP712 signature over `role`, `msg.sender`
    *      and `signer`.
    */
   function authorizeSignerWithSignature(address signer, bytes32 role, uint8 v, bytes32 r, bytes32 s)
@@ -391,13 +391,14 @@ IMapVersionedContract,
     bytes32 s,
     bytes calldata ecdsaPublicKey,
     bytes calldata blsPublicKey,
+    bytes calldata blsG1PublicKey,
     bytes calldata blsPop
   ) external nonReentrant {
     legacyAuthorizeSignerWithSignature(signer, ValidatorSigner, v, r, s);
     setIndexedSigner(signer, ValidatorSigner);
 
     require(
-      getValidators().updatePublicKeys(msg.sender, signer, ecdsaPublicKey, blsPublicKey, blsPop),
+      getValidators().updatePublicKeys(msg.sender, signer, ecdsaPublicKey, blsPublicKey,blsG1PublicKey, blsPop),
       "Failed to update validator keys"
     );
     emit ValidatorSignerAuthorized(msg.sender, signer);
@@ -438,7 +439,7 @@ IMapVersionedContract,
   }
 
   /**
-   * @notice Finish the process of authorizing an address to sign on behalf of the account. 
+   * @notice Finish the process of authorizing an address to sign on behalf of the account.
    * @param account The address of account that authorized signing.
    * @param role The role to finish authorizing for.
    */
@@ -535,7 +536,7 @@ IMapVersionedContract,
   }
 
   /**
-   * @notice Remove one of the Validator, Attestation or 
+   * @notice Remove one of the Validator, Attestation or
    * Vote signers from an account. Should only be called from
    * methods that check the role is a legacy signer.
    * @param role The role that has been authorized.
@@ -558,7 +559,7 @@ IMapVersionedContract,
   }
 
   /**
-   * @notice Removes the currently authorized and indexed signer 
+   * @notice Removes the currently authorized and indexed signer
    * for a specific role
    * @param role The role of the signer.
    */
@@ -570,7 +571,7 @@ IMapVersionedContract,
   }
 
   /**
-   * @notice Removes the currently authorized signer for a specific role and 
+   * @notice Removes the currently authorized signer for a specific role and
    * if the signer is indexed, remove that as well.
    * @param signer The address of the signer.
    * @param role The role that has been authorized.
@@ -680,7 +681,7 @@ IMapVersionedContract,
   }
 
   /**
-   * @notice Returns the legacy signer for the specified account and 
+   * @notice Returns the legacy signer for the specified account and
    * role. If no signer has been specified it will return the account itself.
    * @param _account The address of the account.
    * @param role The role of the signer.
@@ -702,7 +703,7 @@ IMapVersionedContract,
   }
 
   /**
-   * @notice Returns the default signer for the specified account and 
+   * @notice Returns the default signer for the specified account and
    * role. If no signer has been specified it will return the account itself.
    * @param account The address of the account.
    * @param role The role of the signer.
@@ -713,7 +714,7 @@ IMapVersionedContract,
   }
 
   /**
-   * @notice Returns the indexed signer for the specified account and role. 
+   * @notice Returns the indexed signer for the specified account and role.
    * If no signer has been specified it will return the account itself.
    * @param account The address of the account.
    * @param role The role of the signer.
@@ -975,7 +976,7 @@ IMapVersionedContract,
    * @param r Output value r of the ECDSA signature.
    * @param s Output value s of the ECDSA signature.
    * @dev Fails if the address is already authorized to another account or is an account itself.
-   * @dev Note that this signature is EIP712 compliant over the authorizing `account` 
+   * @dev Note that this signature is EIP712 compliant over the authorizing `account`
    * (`msg.sender`), `signer` (`authorized`) and `role`.
    */
   function authorizeAddressWithRole(address authorized, bytes32 role, uint8 v, bytes32 r, bytes32 s)
