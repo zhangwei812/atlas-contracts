@@ -250,7 +250,7 @@ CalledByVm
     {
         require(votes.total.eligible.contains(validator), "Validator not eligible");
         require(0 < value, "Vote value cannot be zero");
-        require(canReceiveVotes(validator, value), "Validator cannot receive votes");
+//        require(canReceiveVotes(validator, value), "Validator cannot receive votes");
         address account = getAccounts().voteSignerToAccount(msg.sender);
 
         // Add validator to the validators voted for by the account.
