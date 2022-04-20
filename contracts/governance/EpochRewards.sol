@@ -27,6 +27,8 @@ CalledByVm
 
     uint256 public startTime = 0;
     FixidityLib.Fraction private communityRewardFraction;
+    FixidityLib.Fraction  private epochRelayerPaymentFraction;
+
     address public communityPartner;
     uint256 public epochPayment;
 
