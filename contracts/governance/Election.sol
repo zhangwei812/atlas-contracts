@@ -250,7 +250,7 @@ CalledByVm
     {
         require(votes.total.eligible.contains(validator), "Validator not eligible");
         require(0 < value, "Vote value cannot be zero");
-        require(canReceiveVotes(validator, value), "Validator cannot receive votes");
+//        require(canReceiveVotes(validator, value), "Validator cannot receive votes");
         address account = getAccounts().voteSignerToAccount(msg.sender);
 
         // Add validator to the validators voted for by the account.
@@ -995,6 +995,7 @@ CalledByVm
     function activeAllPending(address[] calldata validators)
     external
     nonReentrant
+    onlyVm
     returns (bool)
     {
         for (uint256 i = 0; i < validators.length; i = i.add(1)) {
@@ -1012,25 +1013,11 @@ CalledByVm
             address account = voters[i];
             PendingVote storage pendingVote = votes.pending.forValidator[validator].byAccount[account];
             uint256 value = pendingVote.value;
-            while (voters.length > 0) {
-                if (pendingVote.epoch < getEpochNumber()) {
-                    decrementPendingVotes(validator, account, value);
-                    incrementActiveVotes(validator, account, value);
-                    emit ValidatorVoteActivated(account, validator, value);
-
-                    deleteElement(voters, account, i);
-                    if (voters.length > 0) {
-                        account = voters[i];
-                        pendingVote = votes.pending.forValidator[validator].byAccount[account];
-                        value = pendingVote.value;
-                    } else {
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            }
+            decrementPendingVotes(validator, account, value);
+            incrementActiveVotes(validator, account, value);
+            emit ValidatorVoteActivated(account, validator, value);
         }
+        voters.length =0;
         return true;
     }
 

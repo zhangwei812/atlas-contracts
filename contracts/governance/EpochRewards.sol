@@ -27,9 +27,10 @@ CalledByVm
 
     uint256 public startTime = 0;
     FixidityLib.Fraction private communityRewardFraction;
+    FixidityLib.Fraction  private epochRelayerPaymentFraction;
+
     address public communityPartner;
     uint256 public epochPayment;
-    uint256 public epochRelayerPayment;
 
     event TargetVotingGoldFractionSet(uint256 fraction);
     event CommunityRewardFundSet(address indexed partner, uint256 fraction);
@@ -62,21 +63,19 @@ CalledByVm
     /**
      * @notice Used in place of the constructor to allow the contract to be upgradable via proxy.
      * @param registryAddress The address of the registry contract.
-     * @param _targetValidatorEpochPayment The target validator epoch payment.
      * @param _communityRewardFraction The percentage of rewards that go the community funds.
      * @dev Should be called only once.
      */
     function initialize(
         address registryAddress,
-        uint256 _targetValidatorEpochPayment,
-        uint256 _targetRelayerEpochPayment,
+        uint256 _targetEpochPayment,
         uint256 _communityRewardFraction,
         address _communityPartner
     ) external initializer {
         _transferOwnership(msg.sender);
         setRegistry(registryAddress);
-        setTargetValidatorEpochPayment(_targetValidatorEpochPayment);
-        setTargetRelayerEpochPayment(_targetRelayerEpochPayment);
+        setTargetEpochPayment(_targetEpochPayment);
+        epochRelayerPaymentFraction = FixidityLib.newFixed(1).divide(FixidityLib.newFixed(3));
         setCommunityRewardFraction(_communityPartner, _communityRewardFraction);
         startTime = now;
     }
@@ -113,28 +112,17 @@ CalledByVm
 
 
     /**
-     * @notice Sets the target per-epoch payment in MAP  for validators.
+     * @notice Sets the target per-epoch payment in MAP  for validators and relayer.
      * @param value The value in MAP .
      * @return True upon success.
      */
-    function setTargetValidatorEpochPayment(uint256 value) public onlyOwner returns (bool) {
+    function setTargetEpochPayment(uint256 value) public onlyOwner returns (bool) {
         require(value != epochPayment, "Target validator epoch payment unchanged");
         epochPayment = value;
         emit TargetValidatorEpochPaymentSet(value);
         return true;
     }
 
-    /**
-      * @notice Sets the target per-epoch payment in MAP  for Relayer.
-      * @param value The value in MAP .
-      * @return True upon success.
-      */
-    function setTargetRelayerEpochPayment(uint256 value) public onlyOwner returns (bool) {
-        require(value != epochRelayerPayment, "Target validator epoch payment unchanged");
-        epochRelayerPayment = value;
-        emit TargetRelayerEpochPaymentSet(value);
-        return true;
-    }
     /**
      * @notice Returns the total target epoch payments to validators, converted to Gold.
      * @return The total target epoch payments to validators, converted to Gold.
@@ -163,12 +151,18 @@ CalledByVm
     view
     returns (uint256,uint256, uint256)
     {
+        uint256 epochRelayerPayment = FixidityLib
+        .newFixed(epochPayment)
+        .multiply(epochRelayerPaymentFraction)
+        .fromFixed();
+
         uint256 communityFund = FixidityLib
         .newFixed(epochPayment)
         .multiply(communityRewardFraction)
         .fromFixed();
+
         return (
-        epochPayment-communityFund,
+        epochPayment - communityFund - epochRelayerPayment,
         communityFund,
         epochRelayerPayment);
     }
