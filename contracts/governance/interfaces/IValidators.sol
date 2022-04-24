@@ -9,7 +9,7 @@ interface IValidators {
     external
     returns (bool);
 
-    function deregisterValidator(uint256) external returns (bool);
+    function deregisterValidator() external returns (bool);
 
     function updateBlsPublicKey(bytes calldata,bytes calldata, bytes calldata) external returns (bool);
 

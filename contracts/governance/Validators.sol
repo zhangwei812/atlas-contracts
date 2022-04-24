@@ -292,7 +292,7 @@ CalledByVm
         }
     }
 
-    function isPendingDeRegisterValidator() external returns (bool) {
+    function isPendingDeRegisterValidator() external view returns (bool) {
         address account = getAccounts().validatorSignerToAccount(msg.sender);
         return deregisterValidators[account];
     }
@@ -472,12 +472,11 @@ CalledByVm
 
     /**
      * @notice De-registers a validator.
-     * @param index The index of this validator in the list of all registered validators.
      * @return True upon success.
      * @dev Fails if the account is not a validator.
      * @dev Fails if the validator has been a member of a validator too recently.
      */
-    function deregisterValidator(uint256 index) external nonReentrant returns (bool) {
+    function deregisterValidator() external nonReentrant returns (bool) {
         address account = getAccounts().validatorSignerToAccount(msg.sender);
         require(isValidator(account), "Not a validator");
 
@@ -502,13 +501,11 @@ CalledByVm
     }
 
     address[] private regisList;
-
     function deRegisterAllValidatorsInPending()
     external
     nonReentrant
     returns (address[] memory)
     {
-        regisList.length = 0;
         for (uint256 i = 0; i < registeredValidators.length; i = i.add(1)) {
             address account = registeredValidators[i];
             if (deregisterValidators[account]) {
@@ -523,6 +520,7 @@ CalledByVm
             }
         }
         registeredValidators = regisList;
+        delete regisList;
         return registeredValidators;
     }
 
