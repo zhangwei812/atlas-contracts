@@ -1005,19 +1005,16 @@ CalledByVm
     }
 
     function _activeAllPending(address validator) internal returns (bool) {
-        address[] storage voters = votes.pending.forValidator[validator].voters;
+        address[] memory voters = votes.pending.forValidator[validator].voters;
+        votes.pending.forValidator[validator].voters.length =0;//Be sure to empty
         for (uint256 i = 0; i < voters.length; i = i.add(1)) {
-            if (i == voters.length) {
-                break;
-            }
             address account = voters[i];
-            PendingVote storage pendingVote = votes.pending.forValidator[validator].byAccount[account];
+            PendingVote memory pendingVote = votes.pending.forValidator[validator].byAccount[account];
             uint256 value = pendingVote.value;
             decrementPendingVotes(validator, account, value);
             incrementActiveVotes(validator, account, value);
             emit ValidatorVoteActivated(account, validator, value);
         }
-        voters.length =0;
         return true;
     }
 

@@ -68,6 +68,7 @@ CalledByVm
         uint256 registerTimestamp;
     }
 
+
     // Parameters that govern the calculation of validator's score.
     struct ValidatorScoreParameters {
         uint256 exponent;
@@ -76,6 +77,8 @@ CalledByVm
 
     mapping(address => Validator) private validators;
     address[] private registeredValidators;
+    mapping(address => bool) private deregisterValidators;
+
     LockedGoldRequirements public validatorLockedGoldRequirements;
     ValidatorScoreParameters private validatorScoreParameters;
     // The number of blocks to delay a Validator's commission update
@@ -90,6 +93,7 @@ CalledByVm
     event ValidatorLockedGoldRequirementsSet(uint256 value, uint256 duration);
     event ValidatorRegistered(address indexed validator, uint256  indexed commission);
     event ValidatorDeregistered(address indexed validator);
+    event ValidatorPreDeregistered(address indexed validator);
     event ValidatorEcdsaPublicKeyUpdated(address indexed validator, bytes ecdsaPublicKey);
     event ValidatorBlsPublicKeyUpdated(address indexed validator, bytes blsPublicKey);
     event ValidatorScoreUpdated(address indexed validator, uint256 score, uint256 epochScore);
@@ -260,7 +264,7 @@ CalledByVm
     ) external nonReentrant returns (bool) {
         require(commission <= FixidityLib.fixed1().unwrap(), "Commission can't be greater than 100%");
         address account = getAccounts().validatorSignerToAccount(msg.sender);
-        require(isValidator(account), "Already registered");
+        require(isValidator(account), "call registerValidatorPre first");
         uint256 lockedGoldBalance = getLockedGold().getAccountTotalLockedGold(account);
         require(lockedGoldBalance >= validatorLockedGoldRequirements.value, "Deposit too small");
         Validator storage validator = validators[account];
@@ -276,6 +280,23 @@ CalledByVm
         getElection().markValidatorEligible(lesser, greater, account);
         return true;
     }
+
+    function revertRegisterValidator() external returns (bool) {
+        address account = getAccounts().validatorSignerToAccount(msg.sender);
+        require(isValidator(account), "account not a pending deRegister Validator");
+        if (deregisterValidators[account]) {
+            delete deregisterValidators[account];
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function isPendingDeRegisterValidator() external returns (bool) {
+        address account = getAccounts().validatorSignerToAccount(msg.sender);
+        return deregisterValidators[account];
+    }
+
     /*
     * @param ecdsaPublicKey The ECDSA public key that the validator is using for consensus, should
     *   match the validator signer. 64 bytes.
@@ -291,7 +312,7 @@ CalledByVm
         bytes calldata ecdsaPublicKey
     ) external nonReentrant returns (bool) {
         address account = getAccounts().validatorSignerToAccount(msg.sender);
-//                require(!isValidator(account), "Already registered");
+        //                require(!isValidator(account), "Already registered");
         //        uint256 lockedGoldBalance = getLockedGold().getAccountTotalLockedGold(account);
         //        require(lockedGoldBalance >= validatorLockedGoldRequirements.value, "Deposit too small");
         Validator storage validator = validators[account];
@@ -467,15 +488,45 @@ CalledByVm
             validatorLockedGoldRequirements.duration
         );
         require(requirementEndTime < now, "Not yet requirement end time");
-        //Marks a validator ineligible for electing validators.
-        //Will not participate in validation
-        getElection().markValidatorIneligible(account);
-        // Remove the validator.
-        deleteElement(registeredValidators, account, index);
-        delete validators[account];
-        emit ValidatorDeregistered(account);
+
+        deregisterValidators[account] = true;
+        emit ValidatorPreDeregistered(account);
+        //        //Marks a validator ineligible for electing validators.
+        //        //Will not participate in validation
+        //        getElection().markValidatorIneligible(account);
+        //        // Remove the validator.
+        //        deleteElement(registeredValidators, account, index);
+        //        delete validators[account];
+        //        emit ValidatorDeregistered(account);
         return true;
     }
+
+    address[] private regisList;
+
+    function deRegisterAllValidatorsInPending()
+    external
+    nonReentrant
+    returns (address[] memory)
+    {
+        regisList.length = 0;
+        for (uint256 i = 0; i < registeredValidators.length; i = i.add(1)) {
+            address account = registeredValidators[i];
+            if (deregisterValidators[account]) {
+                //Marks a validator ineligible for electing validators.
+                //Will not participate in validation
+                getElection().markValidatorIneligible(account);
+                delete validators[account];
+                delete deregisterValidators[account];
+                emit ValidatorDeregistered(account);
+            } else {
+                regisList.push(account);
+            }
+        }
+        registeredValidators = regisList;
+        return registeredValidators;
+    }
+
+
 
 
     /**
@@ -779,6 +830,9 @@ CalledByVm
         return registeredValidators;
     }
 
+    function getDeRegisteredValidatorsT() external view returns (address[] memory) {
+        return regisList;
+    }
     /**
      * @notice Returns the list of signers for the registered validator accounts.
      * @return The list of signers for registered validator accounts.
