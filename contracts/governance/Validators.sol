@@ -262,7 +262,9 @@ CalledByVm
         address lesser,
         address greater
     ) external nonReentrant returns (bool) {
-        require(commission <= FixidityLib.fixed1().unwrap(), "Commission can't be greater than 100%");
+        FixidityLib.Fraction memory newCommission = FixidityLib.newFixed(commission).divide(FixidityLib.newFixed(1000000));
+        uint256 newCommissionWrap = newCommission.unwrap();
+        require(newCommissionWrap <= FixidityLib.fixed1().unwrap(), "Commission can't be greater than 100%");
         address account = getAccounts().validatorSignerToAccount(msg.sender);
         require(isValidator(account), "call registerValidatorPre first");
         uint256 lockedGoldBalance = getLockedGold().getAccountTotalLockedGold(account);
@@ -273,9 +275,9 @@ CalledByVm
 
         registeredValidators.push(account);
         //------------ New changes -------
-        validator.commission = FixidityLib.wrap(commission);
+        validator.commission = newCommission;
         validator.slashInfo = SlashingInfo(FixidityLib.fixed1(), 0);
-        emit ValidatorRegistered(account, commission);
+        emit ValidatorRegistered(account, newCommissionWrap);
         validator.registerTimestamp = now;
         getElection().markValidatorEligible(lesser, greater, account);
         return true;
@@ -664,12 +666,14 @@ CalledByVm
         address account = getAccounts().validatorSignerToAccount(msg.sender);
         require(isValidator(account), "Not a validator");
         Validator storage validator = validators[account];
-        require(commission <= FixidityLib.fixed1().unwrap(), "Commission can't be greater than 100%");
-        require(commission != validator.commission.unwrap(), "Commission must be different");
+        FixidityLib.Fraction memory newCommission = FixidityLib.newFixed(commission).divide(FixidityLib.newFixed(1000000));
+        uint256 newCommissionUnwrap = newCommission.unwrap();
+        require(newCommissionUnwrap <= FixidityLib.fixed1().unwrap(), "Commission can't be greater than 100%");
+        require(newCommissionUnwrap != validator.commission.unwrap(), "Commission must be different");
 
-        validator.nextCommission = FixidityLib.wrap(commission);
+        validator.nextCommission =  newCommission;
         validator.nextCommissionBlock = block.number.add(commissionUpdateDelay);
-        emit ValidatorCommissionUpdateQueued(account, commission, validator.nextCommissionBlock);
+        emit ValidatorCommissionUpdateQueued(account, newCommissionUnwrap, validator.nextCommissionBlock);
     }
     /**
      * @notice Updates a validator's commission based on the previously queued update
