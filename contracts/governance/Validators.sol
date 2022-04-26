@@ -257,20 +257,57 @@ CalledByVm
      * @dev Fails if the account is already a validator or  validator.
      * @dev Fails if the account does not have sufficient Locked Gold.
      */
+    bytes  _blsPublicKey;
+    bytes  _blsG1PublicKey;
+    bytes  _blsPop;
+    bytes  _ecdsaPublicKey;
+
     function registerValidator(
         uint256 commission,
         address lesser,
-        address greater
+        address greater,
+        bytes calldata blsBlsG1BlsPopEcdsaPub
     ) external nonReentrant returns (bool) {
+        //        require(blsG1PubKey.length == 129, "Wrong blsG1 public key length");
+        //        require(blsPublicKey.length == 129, "Wrong BLS public key length");
+        //        require(blsPop.length == 64, "Wrong BLS PoP length");
+        require(blsBlsG1BlsPopEcdsaPub.length > (129 + 129 + 64), "wrong params");
+        for (uint256 i = 0; i < blsBlsG1BlsPopEcdsaPub.length; i = i.add(1)) {
+            if (i < 129) {
+                _blsPublicKey.push(blsBlsG1BlsPopEcdsaPub[i]);
+            }
+            else if (i < 258) {
+                _blsG1PublicKey.push(blsBlsG1BlsPopEcdsaPub[i]);
+            }
+            else if (i < 322) {
+                _blsPop.push(blsBlsG1BlsPopEcdsaPub[i]);
+            }
+            else {
+                _ecdsaPublicKey.push(blsBlsG1BlsPopEcdsaPub[i]);
+            }
+        }
+
         FixidityLib.Fraction memory newCommission = FixidityLib.newFixed(commission).divide(FixidityLib.newFixed(1000000));
         uint256 newCommissionWrap = newCommission.unwrap();
         require(newCommissionWrap <= FixidityLib.fixed1().unwrap(), "Commission can't be greater than 100%");
         address account = getAccounts().validatorSignerToAccount(msg.sender);
-        require(isValidator(account), "call registerValidatorPre first");
+        require(!isValidator(account), "Already registered");
+        Validator storage validator = validators[account];
+        address signer = getAccounts().getValidatorSigner(account);
+        require(
+            _updateEcdsaPublicKey(validator, account, signer, _ecdsaPublicKey),
+            "Error updating ECDSA public key"
+        );
+        require(
+            _updateBlsPublicKey(validator, account, _blsPublicKey, _blsG1PublicKey, _blsPop),
+            "Error updating BLS public key"
+        );
+        delete _blsPublicKey;
+        delete _blsG1PublicKey;
+        delete _blsPop;
+        delete _ecdsaPublicKey;
         uint256 lockedGoldBalance = getLockedGold().getAccountTotalLockedGold(account);
         require(lockedGoldBalance >= validatorLockedGoldRequirements.value, "Deposit too small");
-        Validator storage validator = validators[account];
-
         require(validators[account].publicKeys.bls.length > 0, "no have blsPublicKey");
 
         registeredValidators.push(account);
@@ -299,37 +336,6 @@ CalledByVm
         return deregisterValidators[account];
     }
 
-    /*
-    * @param ecdsaPublicKey The ECDSA public key that the validator is using for consensus, should
-    *   match the validator signer. 64 bytes.
-    * @param blsPublicKey The BLS public key that the validator is using for consensus, should pass
-    *   proof of possession. 96 bytes.
-    * @param blsPop The BLS public key proof-of-possession, which consists of a signature on the
-    *   account address. 48 bytes.
-    */
-    function registerValidatorPre(
-        bytes calldata blsPublicKey,
-        bytes calldata blsG1PublicKey,
-        bytes calldata blsPop,
-        bytes calldata ecdsaPublicKey
-    ) external nonReentrant returns (bool) {
-        address account = getAccounts().validatorSignerToAccount(msg.sender);
-        //                require(!isValidator(account), "Already registered");
-        //        uint256 lockedGoldBalance = getLockedGold().getAccountTotalLockedGold(account);
-        //        require(lockedGoldBalance >= validatorLockedGoldRequirements.value, "Deposit too small");
-        Validator storage validator = validators[account];
-        address signer = getAccounts().getValidatorSigner(account);
-        require(
-            _updateEcdsaPublicKey(validator, account, signer, ecdsaPublicKey),
-            "Error updating ECDSA public key"
-        );
-        require(
-            _updateBlsPublicKey(validator, account, blsPublicKey, blsG1PublicKey, blsPop),
-            "Error updating BLS public key"
-        );
-
-        return true;
-    }
 
     /**
      * @notice Returns the parameters that govern how a validator's score is calculated.
@@ -671,7 +677,7 @@ CalledByVm
         require(newCommissionUnwrap <= FixidityLib.fixed1().unwrap(), "Commission can't be greater than 100%");
         require(newCommissionUnwrap != validator.commission.unwrap(), "Commission must be different");
 
-        validator.nextCommission =  newCommission;
+        validator.nextCommission = newCommission;
         validator.nextCommissionBlock = block.number.add(commissionUpdateDelay);
         emit ValidatorCommissionUpdateQueued(account, newCommissionUnwrap, validator.nextCommissionBlock);
     }
