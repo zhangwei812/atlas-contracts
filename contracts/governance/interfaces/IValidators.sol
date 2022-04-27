@@ -1,11 +1,7 @@
 pragma solidity ^0.5.13;
 
 interface IValidators {
-    function registerValidator(uint256 commission, address lesser, address greater)
-    external
-    returns (bool);
-
-    function registerValidatorPre(bytes calldata, bytes calldata,bytes calldata, bytes calldata)
+    function registerValidator(uint256 commission, address lesser, address greater,bytes calldata blsBlsG1BlsPopEcdsaPub)
     external
     returns (bool);
 
