@@ -1,1 +1,1 @@
-# map-contracts
+# atlas-contracts
