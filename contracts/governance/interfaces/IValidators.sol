@@ -1,7 +1,8 @@
 pragma solidity ^0.5.13;
+pragma experimental ABIEncoderV2;
 
 interface IValidators {
-    function registerValidator(uint256 commission, address lesser, address greater,bytes calldata blsBlsG1BlsPopEcdsaPub)
+    function registerValidator(uint256 commission, address lesser, address greater,bytes[] calldata blsBlsG1BlsPopEcdsaPub)
     external
     returns (bool);
 

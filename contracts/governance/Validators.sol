@@ -1,4 +1,5 @@
 pragma solidity ^0.5.13;
+pragma experimental ABIEncoderV2;
 
 import "openzeppelin-solidity/contracts/math/Math.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
@@ -252,41 +253,22 @@ CalledByVm
 
     /**
      * @notice Registers a validator
-
+     * @param blsBlsG1BlsPopEcdsaPub contain 4 params
+            blsBlsG1BlsPopEcdsaPub[0] = bytes memory blsPublicKey,
+            blsBlsG1BlsPopEcdsaPub[1] = bytes memory blsG1PubKey,
+            blsBlsG1BlsPopEcdsaPub[2] = bytes memory blsPop,
+            blsBlsG1BlsPopEcdsaPub[3] = bytes memory ecdsaPublicKey,
      * @return True upon success.
      * @dev Fails if the account is already a validator or  validator.
      * @dev Fails if the account does not have sufficient Locked Gold.
      */
-    bytes  _blsPublicKey;
-    bytes  _blsG1PublicKey;
-    bytes  _blsPop;
-    bytes  _ecdsaPublicKey;
-
     function registerValidator(
         uint256 commission,
         address lesser,
         address greater,
-        bytes calldata blsBlsG1BlsPopEcdsaPub
+        bytes[] calldata blsBlsG1BlsPopEcdsaPub
     ) external nonReentrant returns (bool) {
-        //        require(blsG1PubKey.length == 129, "Wrong blsG1 public key length");
-        //        require(blsPublicKey.length == 129, "Wrong BLS public key length");
-        //        require(blsPop.length == 64, "Wrong BLS PoP length");
-        require(blsBlsG1BlsPopEcdsaPub.length > (129 + 129 + 64), "wrong params");
-        for (uint256 i = 0; i < blsBlsG1BlsPopEcdsaPub.length; i = i.add(1)) {
-            if (i < 129) {
-                _blsPublicKey.push(blsBlsG1BlsPopEcdsaPub[i]);
-            }
-            else if (i < 258) {
-                _blsG1PublicKey.push(blsBlsG1BlsPopEcdsaPub[i]);
-            }
-            else if (i < 322) {
-                _blsPop.push(blsBlsG1BlsPopEcdsaPub[i]);
-            }
-            else {
-                _ecdsaPublicKey.push(blsBlsG1BlsPopEcdsaPub[i]);
-            }
-        }
-
+        require(blsBlsG1BlsPopEcdsaPub.length == 4, "wrong params");
         FixidityLib.Fraction memory newCommission = FixidityLib.newFixed(commission).divide(FixidityLib.newFixed(1000000));
         uint256 newCommissionWrap = newCommission.unwrap();
         require(newCommissionWrap <= FixidityLib.fixed1().unwrap(), "Commission can't be greater than 100%");
@@ -295,17 +277,13 @@ CalledByVm
         Validator storage validator = validators[account];
         address signer = getAccounts().getValidatorSigner(account);
         require(
-            _updateEcdsaPublicKey(validator, account, signer, _ecdsaPublicKey),
+            _updateEcdsaPublicKey(validator, account, signer, blsBlsG1BlsPopEcdsaPub[3]),
             "Error updating ECDSA public key"
         );
         require(
-            _updateBlsPublicKey(validator, account, _blsPublicKey, _blsG1PublicKey, _blsPop),
+            _updateBlsPublicKey(validator, account, blsBlsG1BlsPopEcdsaPub[0], blsBlsG1BlsPopEcdsaPub[1], blsBlsG1BlsPopEcdsaPub[2]),
             "Error updating BLS public key"
         );
-        delete _blsPublicKey;
-        delete _blsG1PublicKey;
-        delete _blsPop;
-        delete _ecdsaPublicKey;
         uint256 lockedGoldBalance = getLockedGold().getAccountTotalLockedGold(account);
         require(lockedGoldBalance >= validatorLockedGoldRequirements.value, "Deposit too small");
         require(validators[account].publicKeys.bls.length > 0, "no have blsPublicKey");
@@ -457,12 +435,7 @@ CalledByVm
                 uint256 remainPayment = totalPayment.fromFixed().sub(validatorCommission);
                 //----------------- validator -----------------
                 require(getGoldToken2().mint(account, validatorCommission), "mint failed to validator account");
-
-                //----------------- voter ---------------------
-                //                if (remainPayment > 0) {
-                //                    getElection().distributeEpochVotersRewards(account, remainPayment);
-                //                }
-                //----------------------------------------------
+                
                 emit ValidatorEpochPaymentDistributed(account, validatorCommission);
                 return (totalPayment.fromFixed(), remainPayment);
             } else {
@@ -508,29 +481,41 @@ CalledByVm
         return true;
     }
 
-    address[] private regisList;
+
     function deRegisterAllValidatorsInPending()
     external
     nonReentrant
+    onlyVm
     returns (address[] memory)
     {
         for (uint256 i = 0; i < registeredValidators.length; i = i.add(1)) {
-            address account = registeredValidators[i];
-            if (deregisterValidators[account]) {
-                //Marks a validator ineligible for electing validators.
-                //Will not participate in validation
-                getElection().markValidatorIneligible(account);
-                delete validators[account];
-                delete deregisterValidators[account];
-                emit ValidatorDeregistered(account);
-            } else {
-                regisList.push(account);
+            if (i >= registeredValidators.length) {
+                break;
+            }
+            address  account = registeredValidators[i];
+            while (registeredValidators.length > 0) {
+                if (deregisterValidators[account]) {
+                    //Marks a validator ineligible for electing validators.
+                    //Will not participate in validation
+                    getElection().markValidatorIneligible(account);
+                    delete validators[account];
+                    delete deregisterValidators[account];
+                    emit ValidatorDeregistered(account);
+
+                    deleteElement(registeredValidators, account, i);
+                    if (i < registeredValidators.length) {
+                        account = registeredValidators[i];
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
             }
         }
-        registeredValidators = regisList;
-        delete regisList;
         return registeredValidators;
     }
+
 
 
 
@@ -838,9 +823,6 @@ CalledByVm
         return registeredValidators;
     }
 
-    function getDeRegisteredValidatorsT() external view returns (address[] memory) {
-        return regisList;
-    }
     /**
      * @notice Returns the list of signers for the registered validator accounts.
      * @return The list of signers for registered validator accounts.
