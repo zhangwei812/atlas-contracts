@@ -34,6 +34,7 @@ CalledByVm
 
     event TargetVotingGoldFractionSet(uint256 fraction);
     event CommunityRewardFundSet(address indexed partner, uint256 fraction);
+    event EpochRelayerPaymentFractionFundSet(uint256 fraction);
     event TargetValidatorEpochPaymentSet(uint256 payment);
     event TargetRelayerEpochPaymentSet(uint256 payment);
     event TargetVotingYieldParametersSet(uint256 max, uint256 adjustmentFactor);
@@ -70,13 +71,18 @@ CalledByVm
         address registryAddress,
         uint256 _targetEpochPayment,
         uint256 _communityRewardFraction,
+        uint256 _epochRelayerPaymentFraction,
         address _communityPartner
     ) external initializer {
         _transferOwnership(msg.sender);
         setRegistry(registryAddress);
         setTargetEpochPayment(_targetEpochPayment);
-        epochRelayerPaymentFraction = FixidityLib.newFixed(1).divide(FixidityLib.newFixed(3));
-        setCommunityRewardFraction(_communityPartner, _communityRewardFraction);
+        if (_epochRelayerPaymentFraction!=0){
+            setEpochRelayerPaymentFraction(_epochRelayerPaymentFraction);
+        }
+        if (_communityRewardFraction!=0){
+           setCommunityRewardFraction(_communityPartner, _communityRewardFraction);
+        }
         startTime = now;
     }
 
@@ -95,10 +101,23 @@ CalledByVm
             value < FixidityLib.fixed1().unwrap(),
             "reward fraction and less than 1"
         );
-        require(value < FixidityLib.fixed1().unwrap(), "Value must be less than 1");
         communityPartner = partner;
         communityRewardFraction = FixidityLib.wrap(value);
         emit CommunityRewardFundSet(partner, value);
+        return true;
+    }
+
+    function setEpochRelayerPaymentFraction(uint256 value) public onlyOwner returns (bool) {
+        require(
+            value != epochRelayerPaymentFraction.unwrap(),
+            "EpochRelayerPaymentFraction value must be different from existing EpochRelayerPaymentFraction"
+        );
+        require(
+            value < FixidityLib.fixed1().unwrap(),
+            "EpochRelayerPaymentFraction fraction and less than 1"
+        );
+        epochRelayerPaymentFraction = FixidityLib.wrap(value);
+        emit EpochRelayerPaymentFractionFundSet(value);
         return true;
     }
 
@@ -133,8 +152,7 @@ CalledByVm
     }
 
 
-
-    function getCommunityPartner() external view returns (address ){
+    function getCommunityPartner() external view returns (address){
         return communityPartner;
     }
 
@@ -149,7 +167,7 @@ CalledByVm
     function calculateTargetEpochRewards()
     external
     view
-    returns (uint256,uint256, uint256)
+    returns (uint256, uint256, uint256)
     {
         uint256 epochRelayerPayment = FixidityLib
         .newFixed(epochPayment)
