@@ -115,6 +115,7 @@ IMapVersionedContract,
    * @notice Locks gold to be used for voting.
    */
   function lock() external payable nonReentrant {
+    require(10 ether <= msg.value, "The minimum lock must be greater than 10 ether");
     require(getAccounts().isAccount(msg.sender), "not account");
     _incrementNonvotingAccountBalance(msg.sender, msg.value);
     emit GoldLocked(msg.sender, msg.value);
