@@ -78,7 +78,7 @@ CalledByVm
 
     mapping(address => Validator) private validators;
     address[] private registeredValidators;
-    mapping(address => bool) private deregisterValidators;
+    address[] private deregisterValidators;
 
     LockedGoldRequirements public validatorLockedGoldRequirements;
     ValidatorScoreParameters private validatorScoreParameters;
@@ -301,17 +301,23 @@ CalledByVm
     function revertRegisterValidator() external returns (bool) {
         address account = getAccounts().validatorSignerToAccount(msg.sender);
         require(isValidator(account), "account not a pending deRegister Validator");
-        if (deregisterValidators[account]) {
-            delete deregisterValidators[account];
-            return true;
-        } else {
-            return false;
+        for (uint256 i=0; i<deregisterValidators.length;i=i.add(1)){
+            if (deregisterValidators[i] == account){
+                deleteElement(deregisterValidators, account, i);
+               return true;
+            }
         }
+        return false;
     }
 
     function isPendingDeRegisterValidator() external view returns (bool) {
         address account = getAccounts().validatorSignerToAccount(msg.sender);
-        return deregisterValidators[account];
+        for (uint256 i=0; i<deregisterValidators.length;i=i.add(1)){
+            if (deregisterValidators[i] == account){
+                return true;
+            }
+        }
+        return false;
     }
 
 
@@ -435,7 +441,7 @@ CalledByVm
                 uint256 remainPayment = totalPayment.fromFixed().sub(validatorCommission);
                 //----------------- validator -----------------
                 require(getGoldToken2().mint(account, validatorCommission), "mint failed to validator account");
-                
+
                 emit ValidatorEpochPaymentDistributed(account, validatorCommission);
                 return (totalPayment.fromFixed(), remainPayment);
             } else {
@@ -469,7 +475,7 @@ CalledByVm
         );
         require(requirementEndTime < now, "Not yet requirement end time");
 
-        deregisterValidators[account] = true;
+        deregisterValidators.push(account);
         emit ValidatorPreDeregistered(account);
         //        //Marks a validator ineligible for electing validators.
         //        //Will not participate in validation
@@ -488,32 +494,21 @@ CalledByVm
     onlyVm
     returns (address[] memory)
     {
-        for (uint256 i = 0; i < registeredValidators.length; i = i.add(1)) {
-            if (i >= registeredValidators.length) {
-                break;
-            }
-            address  account = registeredValidators[i];
-            while (registeredValidators.length > 0) {
-                if (deregisterValidators[account]) {
-                    //Marks a validator ineligible for electing validators.
-                    //Will not participate in validation
-                    getElection().markValidatorIneligible(account);
-                    delete validators[account];
-                    delete deregisterValidators[account];
-                    emit ValidatorDeregistered(account);
-
-                    deleteElement(registeredValidators, account, i);
-                    if (i < registeredValidators.length) {
-                        account = registeredValidators[i];
-                    } else {
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            }
-        }
-        return registeredValidators;
+         for (uint256 i = 0; i < deregisterValidators.length; i = i.add(1)){
+             for (uint256 j = 0; j < registeredValidators.length; j = j.add(1)) {
+                 if (deregisterValidators[i] ==registeredValidators[j]){
+                     deleteElement(registeredValidators, deregisterValidators[i], j);
+                     //Marks a validator ineligible for electing validators.
+                     //Will not participate in validation
+                     getElection().markValidatorIneligible(deregisterValidators[i]);
+                     delete validators[deregisterValidators[i]];
+                     emit ValidatorDeregistered(deregisterValidators[i]);
+                     break;
+                 }
+             }
+         }
+         delete deregisterValidators;
+         return registeredValidators;
     }
 
 
