@@ -554,8 +554,8 @@ CalledByVm
         bytes memory blsG1PubKey,
         bytes memory blsPop
     ) private returns (bool) {
-        require(blsG1PubKey.length == 129, "Wrong blsG1 public key length");
-        require(blsPublicKey.length == 129, "Wrong BLS public key length");
+        require(blsG1PubKey.length == 64, "Wrong blsG1 public key length");
+        require(blsPublicKey.length == 128, "Wrong BLS public key length");
         require(blsPop.length == 64, "Wrong BLS PoP length");
         require(checkProofOfPossession(account, blsPublicKey, blsG1PubKey, blsPop), "Invalid BLS PoP");
         validator.publicKeys.bls = blsPublicKey;
