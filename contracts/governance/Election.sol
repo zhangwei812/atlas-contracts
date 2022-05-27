@@ -875,8 +875,16 @@ CalledByVm
         address[] memory electionValidators = votes.total.eligible.headN(numElectionValidators);
         uint256 totalNumMembersElected = electionValidators.length;
         require(totalNumMembersElected >= minElectableValidators, "Not enough elected validators");
-        return electionValidators;
+
+        address[] memory electedValidators = new address[](totalNumMembersElected);
+        totalNumMembersElected = 0;
+        for (uint256 j = 0; j < electionValidators.length; j = j.add(1)) {
+            electedValidators[totalNumMembersElected] = getAccounts().getValidatorSigner(electionValidators[j]);
+            totalNumMembersElected = totalNumMembersElected.add(1);
+        }
+        return electedValidators;
     }
+
 
     /**
      * @notice Returns get current validator signers using the precompiles.
